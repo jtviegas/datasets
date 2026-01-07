@@ -1,0 +1,4 @@
+tmp/
+.local_variables
+.secrets
+.venv/
