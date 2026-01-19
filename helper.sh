@@ -114,6 +114,7 @@ usage() {
   $(basename $0) { option }
     options:
       - reqs        checks requirements
+      - print_uuid  prints a new uuid
 EOM
   exit 1
 }
@@ -123,6 +124,9 @@ EOM
 case "$1" in
   reqs)
     reqs
+    ;;
+  print_uuid)
+    print_uuid
     ;;
   *)
     usage
