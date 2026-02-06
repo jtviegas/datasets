@@ -1,5 +1,5 @@
 [project]
-name = "datasets"
+name = "tgedr-datasets"
 version = "0.1.0"
 description = "datasets to be consumed elsewhere"
 readme = "README.md"
