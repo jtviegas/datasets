@@ -88,6 +88,8 @@ bashutils="$this_folder/$INCLUDE_FILE"
 
 # <=== HEADER SECTION END  <===
 
+export SRC_DIR="$this_folder/src"
+
 # ===> MAIN SECTION START  ===>
 
 reqs(){
@@ -300,8 +302,6 @@ usage() {
   usage:
   $(basename $0) { option }
     options:
-      - install_qa_libs                  installs QA requirements (bandit, safety)
-      - uninstall_qa_libs                uninstalls QA requirements (bandit, safety)
       - reqs                              installs development requirements
       - linter_check                      runs code lint and format check
       - sast_check                        runs static application security tests (SAST) check
@@ -319,12 +319,6 @@ EOM
 
 
 case "$1" in
-  install_qa_libs)
-    install_qa_libs
-    ;;
-  uninstall_qa_libs)
-    uninstall_qa_libs
-    ;;
   reqs)
     reqs
     ;;
