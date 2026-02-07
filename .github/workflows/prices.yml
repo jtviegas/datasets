@@ -1,0 +1,41 @@
+name: prices
+
+on:
+    workflow_dispatch:
+
+jobs:
+  execute_pipeline:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: '0'
+    - name: 'install uv'
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+    - name: 'setup python env'
+      run: |
+        uv venv .venv --python 3.11
+    - name: install library
+      run: uv pip install --python .venv/bin/python tgedr-datasets==0.1.3
+    - name: 'pipeline task 1: get prices'
+      id: get_prices
+      run: | 
+        [ ! -d "./datalake" ] && mkdir ./datalake
+        .venv/bin/run --module tgedr_datasets.prices.etl \
+          --classname PricesEtl \
+          --callable run \
+          --classparams "{\"configuration\": {\"tickers_url\": \"./datalake/tickers\", \"target_url\": \"./datalake/prices\"}}" | tee output.log
+        cat output.log
+    - name: Commit and Push changes
+      run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add datalake/prices
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit . -m "auto: update output data"
+            git push
+          fi

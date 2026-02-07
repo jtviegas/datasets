@@ -12,7 +12,8 @@ dependencies = [
     "lxml>=6.0.2",
     "html5lib>=1.1",
     "bs4>=0.0.2",
-    "tgedr-pycommons>=1.0.0",
+    "tgedr-pycommons>=1.0.1",
+    "yfinance==0.2.66",
 ]
 
 [dependency-groups]
@@ -116,7 +117,7 @@ indent-width = 4
 select = ["ALL"]
 ignore = ["D203", "S101", "D104", "INP001", "D213", "COM812", "I001", 
     "D401", "D407", "RET504", "PLR2004", "FA102", "E501", "EXE002", "PLR0913", 
-    "PLR0912", "C901", "PLR0911", "G004"]
+    "PLR0912", "C901", "PLR0911", "G004", "D413"]
 fixable = ["ALL"]
 unfixable = []
 # Allow unused variables when underscore-prefixed.
