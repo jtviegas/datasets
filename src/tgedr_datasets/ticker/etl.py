@@ -10,7 +10,6 @@ from typing import Any
 from datetime import datetime, UTC
 import pandas as pd
 from tgedr_dataops_abs.etl import Etl
-from tgedr_dataops_abs.store import Store  # noqa: TC002
 from tgedr_dataops.store.parquet_store import ParquetStore
 
 from tgedr_datasets.ticker.fetcher import TickerFetcher
@@ -61,21 +60,20 @@ class TickerEtl(Etl):
         logger.info("[transform|out]")
 
     @Etl.inject_configuration
-    def load(self, target: str) -> str:
+    def load(self, target_url: str) -> str:
         """Load transformed ticker data into a Parquet store.
 
         Args:
-            target: File path where the Parquet data will be saved.
+            target_url: File path where the Parquet data will be saved.
 
         Returns:
             The target path where data was saved.
 
         """
-        logger.info(f"[load|in] ({target})")
+        logger.info(f"[load|in] ({target_url})")
 
-        store: Store = ParquetStore()
-        store.update(df=self._result, key=target, key_fields=["date", "ticker"])
+        ParquetStore().update(df=self._result, key=target_url, key_fields=["date", "ticker"])
 
-        logger.info(f"[load|out] => {target}")
-        return target
+        logger.info(f"[load|out] => {target_url}")
+        return target_url
 

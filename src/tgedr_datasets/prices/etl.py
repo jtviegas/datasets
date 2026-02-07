@@ -10,7 +10,6 @@ from typing import Any
 from datetime import datetime, UTC
 import pandas as pd
 from tgedr_dataops_abs.etl import Etl
-from tgedr_dataops_abs.store import Store  # noqa: TC002
 from tgedr_dataops.store.parquet_store import ParquetStore
 from tgedr_datasets.prices.price import Price  # noqa: TC001
 from tgedr_datasets.prices.price_fetcher import PriceFetcher
@@ -20,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class PricesEtl(Etl):
-    """ETL process for fetching, transforming, and loading tickers."""
+    """ETL process for fetching, transforming, and loading ticker prices."""
 
     def __init__(self, configuration: dict[str, Any] | None = None) -> None:  # pragma: no cover
         """Initialize the PricesEtl instance with optional configuration.
@@ -83,8 +82,7 @@ class PricesEtl(Etl):
         """
         logger.info(f"[load|in] ({target_url})")
 
-        store: Store = ParquetStore()
-        store.update(df=self._result, key=target_url, key_fields=["id"])
+        self._store.update(df=self._result, key=target_url, key_fields=["id"])
 
         logger.info(f"[load|out] => {target_url}")
         return target_url

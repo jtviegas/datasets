@@ -1,6 +1,6 @@
 [project]
 name = "tgedr-datasets"
-version = "0.1.6"
+version = "0.1.7"
 description = "datasets to be consumed elsewhere"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -14,6 +14,7 @@ dependencies = [
     "bs4>=0.0.2",
     "tgedr-pycommons>=1.0.1",
     "yfinance==0.2.66",
+    "finnhub-python>=2.4.26"
 ]
 
 [dependency-groups]

@@ -262,18 +262,17 @@ def test_transform_logs_info(prices_etl: PricesEtl, sample_prices: list[Price], 
     assert "transformed" in caplog.text
 
 
-@patch("tgedr_datasets.prices.etl.ParquetStore")
 def test_load_calls_store_update(
-    mock_store_class: Mock, sample_prices: list[Price]
+   sample_prices: list[Price]
 ) -> None:
     """Test load method calls store update with correct parameters."""
     target = "test/prices"
     config = {"target_url": target}
-    prices_etl = PricesEtl(configuration=config)
     
     mock_store = Mock()
-    mock_store_class.return_value = mock_store
-    
+    prices_etl = PricesEtl(configuration=config)
+    prices_etl._store = mock_store
+  
     prices_etl._data = sample_prices
     prices_etl.transform()
     
@@ -309,11 +308,9 @@ def test_load_logs_info(
     assert f"[load|out] => {target}" in caplog.text
 
 
-@patch("tgedr_datasets.prices.etl.ParquetStore")
 @patch("tgedr_datasets.prices.etl.PriceFetcher")
 def test_full_etl_pipeline(
     mock_price_fetcher_class: Mock,
-    mock_store_class: Mock,
     sample_tickers_df: pd.DataFrame,
     sample_prices: list[Price],
 ) -> None:
@@ -324,20 +321,18 @@ def test_full_etl_pipeline(
     # Mock store for extract
     mock_store = Mock()
     mock_store.get.return_value = sample_tickers_df
+    prices_etl._store = mock_store
     
     # Mock price fetcher
     mock_fetcher = Mock()
     mock_fetcher.get_prices.return_value = sample_prices[:2]
     mock_price_fetcher_class.get_instance.return_value = mock_fetcher
     
-    # Mock store for load
-    mock_load_store = Mock()
-    mock_store_class.return_value = mock_load_store
-    
-    prices_etl._store = mock_store
-    
     # Run full pipeline
     prices_etl.extract()
+     # Verify method calls
+    mock_store.get.assert_called_once()
+
     prices_etl.transform()
     result = prices_etl.load()
     
@@ -347,15 +342,12 @@ def test_full_etl_pipeline(
     assert result == "test/prices"
     
     # Verify method calls
-    mock_store.get.assert_called_once()
-    mock_load_store.update.assert_called_once()
+    mock_store.update.assert_called_once()
 
 
-@patch("tgedr_datasets.prices.etl.ParquetStore")
 @patch("tgedr_datasets.prices.etl.PriceFetcher")
 def test_extract_with_configuration_injection(
     mock_price_fetcher_class: Mock,
-    mock_store_class: Mock,
     sample_tickers_df: pd.DataFrame,
     sample_prices: list[Price],
 ) -> None:
@@ -365,34 +357,28 @@ def test_extract_with_configuration_injection(
     
     mock_store = Mock()
     mock_store.get.return_value = sample_tickers_df
-    mock_store_class.return_value = mock_store
+    etl._store = mock_store
     
     mock_fetcher = Mock()
     mock_fetcher.get_prices.return_value = sample_prices[:1]
     mock_price_fetcher_class.get_instance.return_value = mock_fetcher
     
-    etl._store = mock_store
-    
     # The @inject_configuration decorator should use config
     etl.extract()
-    
     mock_store.get.assert_called_once()
 
 
-@patch("tgedr_datasets.prices.etl.ParquetStore")
 def test_load_with_configuration_injection(
-    mock_store_class: Mock, sample_prices: list[Price]
+    sample_prices: list[Price]
 ) -> None:
     """Test load method with configuration injection."""
     config = {"target_url": "test/configured_prices"}
     etl = PricesEtl(configuration=config)
     
     mock_store = Mock()
-    mock_store_class.return_value = mock_store
-    
+    etl._store = mock_store
     etl._data = sample_prices
     etl.transform()
-    
     # The @inject_configuration decorator should use config
     result = etl.load()
     

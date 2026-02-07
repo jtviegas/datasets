@@ -148,7 +148,7 @@ def test_load_saves_to_parquet(
     """Test load method saves DataFrame to Parquet store."""
 
     target_path = "/tmp/test_tickers"
-    ticker_etl = TickerEtl(configuration={"target": target_path})
+    ticker_etl = TickerEtl(configuration={"target_url": target_path})
     mock_store = Mock()
     mock_store_class.return_value = mock_store
     
@@ -175,7 +175,7 @@ def test_load_partition_fields(
 ) -> None:
     """Test load method uses correct partition fields."""
 
-    ticker_etl = TickerEtl(configuration={"target": "/tmp/test"})
+    ticker_etl = TickerEtl(configuration={"target_url": "/tmp/test"})
     mock_store = Mock()
     mock_store_class.return_value = mock_store
     
@@ -197,7 +197,7 @@ def test_full_etl_pipeline(
 ) -> None:
     """Test complete ETL pipeline from extract to load."""
 
-    ticker_etl = TickerEtl(configuration={"source": "sp500", "target": "/tmp/tickers"})
+    ticker_etl = TickerEtl(configuration={"source": "sp500", "target_url": "/tmp/tickers"})
     # Setup mocks
     mock_fetcher = Mock()
     mock_fetcher.fetch.return_value = sample_tickers
@@ -229,7 +229,7 @@ def test_extract_logs_ticker_count(
     """Test extract method logs the number of tickers fetched."""
     caplog.set_level(logging.INFO)
     
-    ticker_etl = TickerEtl(configuration={"source": "sp500", "target": "/tmp/tickers"})
+    ticker_etl = TickerEtl(configuration={"source": "sp500", "target_url": "/tmp/tickers"})
     mock_fetcher = Mock()
     mock_fetcher.fetch.return_value = sample_tickers
     mock_fetcher_class.return_value = mock_fetcher
@@ -259,7 +259,7 @@ def test_load_logs_target_path(
     """Test load method logs the target path."""
     
     target = "/tmp/test_path"
-    ticker_etl = TickerEtl(configuration={"source": "sp500", "target": target})
+    ticker_etl = TickerEtl(configuration={"source": "sp500", "target_url": target})
     caplog.set_level(logging.INFO)
     mock_store = Mock()
     mock_store_class.return_value = mock_store
@@ -299,7 +299,7 @@ def test_load_with_configuration_injection(
     mock_store = Mock()
     mock_store_class.return_value = mock_store
     
-    config = {"target": "/tmp/configured_path"}
+    config = {"target_url": "/tmp/configured_path"}
     etl = TickerEtl(configuration=config)
     etl._data = sample_tickers
     etl.transform()
