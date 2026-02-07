@@ -5,12 +5,15 @@ multiple sources (Alpha Vantage, NewsAPI, and Finnhub), deduplicates results,
 and returns a unified sorted list of articles.
 """
 
+import logging
 from tgedr_datasets.article.alpha_vantage_fetcher import AlphaVantageNewsFetcher
 from tgedr_datasets.article.finnhub_fetcher import FinnhubNewsFetcher
 from tgedr_datasets.article.newsapi_fetcher import NewsApiFetcher
 from tgedr_datasets.article.article import Article
 from tgedr_datasets.article.fetcher import ArticleFetcher
 import yfinance as yf
+
+logger = logging.getLogger(__name__)
 
 
 class ArticlesAggregator:
@@ -68,6 +71,7 @@ class ArticlesAggregator:
             Empty list if no articles found or if all fetchers fail.
 
         """
+        logger.info(f"[get_news|in] ({query}, {timestamp}, {past_window_days}, {extra_query})")
         start_date = timestamp - past_window_days * 86400  # Convert days to seconds
         all_articles: list[Article] = []
         company_name = extra_query if extra_query is not None else self.resolve_company_name(query)
@@ -88,6 +92,7 @@ class ArticlesAggregator:
         unique_articles = {article.url: article for article in all_articles}
         result = list(unique_articles.values())
         result.sort(key=lambda article: article.timestamp)
+        logger.info(f"[get_news|out] returning {len(result)} articles")
         return result
 
     def resolve_company_name(self, ticker: str) -> str | None:

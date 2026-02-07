@@ -59,9 +59,9 @@ class ArticlesEtl(Etl):
 
         processing_ts_formatted = datetime.fromtimestamp(self._processing_time, tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
         articles_aggregator = ArticlesAggregator()
-        logger.info(f"[extract] getting news to: {processing_ts_formatted} from one day before")
+        logger.info(f"[extract] getting news to: {processing_ts_formatted} from 2 days before")
         for ticker in tickers:
-            self._data.extend(articles_aggregator.get_news(ticker, self._processing_time, 1))
+            self._data.extend(articles_aggregator.get_news(ticker, self._processing_time, 2))
 
         logger.info("[extract|out] extracted %d articles", len(self._data))
 
