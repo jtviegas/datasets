@@ -1,6 +1,6 @@
 [project]
 name = "tgedr-datasets"
-version = "0.1.0"
+version = "0.1.1"
 description = "datasets to be consumed elsewhere"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -30,7 +30,7 @@ dev = [
 ]
 
 [project.scripts]
-run = "tgedr.pycommons.entrypoint:entrypoint" 
+run = "tgedr_pycommons.cicd.entrypoint:entrypoint" 
 
 [build-system]
 requires = ["setuptools>=78.1.0", "wheel>=0.45.1"]
