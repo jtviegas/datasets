@@ -1,5 +1,4 @@
 # datasets
-handy datasets
 
 [![cicd](https://github.com/jtviegas/datasets/actions/workflows/cicd.yml/badge.svg)](https://github.com/jtviegas/datasets/actions/workflows/cicd.yml)
 ![Coverage](./coverage.svg)
