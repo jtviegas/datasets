@@ -6,7 +6,10 @@ information at a specific point in time.
 
 from dataclasses import dataclass
 import hashlib
+import logging
 
+
+logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class Price:
@@ -63,20 +66,20 @@ class Price:
 
         # Validate OHLC relationships
         if self.high < self.low:
-            msg = f"high price ({self.high}) must be >= low price ({self.low})"
-            raise ValueError(msg)
+            msg = f"[__post_init] {self.ticker}: high price ({self.high}) must be >= low price ({self.low})"
+            logger.info(msg)
         if self.high < self.open:
-            msg = f"high price ({self.high}) must be >= open price ({self.open})"
-            raise ValueError(msg)
+            msg = f"[__post_init] {self.ticker}: high price ({self.high}) must be >= open price ({self.open})"
+            logger.info(msg)
         if self.high < self.close:
-            msg = f"high price ({self.high}) must be >= close price ({self.close})"
-            raise ValueError(msg)
+            msg = f"[__post_init] {self.ticker}: high price ({self.high}) must be >= close price ({self.close})"
+            logger.info(msg)
         if self.low > self.open:
-            msg = f"low price ({self.low}) must be <= open price ({self.open})"
-            raise ValueError(msg)
+            msg = f"[__post_init] {self.ticker}: low price ({self.low}) must be <= open price ({self.open})"
+            logger.info(msg)
         if self.low > self.close:
-            msg = f"low price ({self.low}) must be <= close price ({self.close})"
-            raise ValueError(msg)
+            msg = f"[__post_init] {self.ticker}: low price ({self.low}) must be <= close price ({self.close})"
+            logger.info(msg)
 
     @property
     def id(self) -> int:

@@ -182,74 +182,124 @@ def test_price_negative_volume_raises_error() -> None:
         )
 
 
-def test_price_high_less_than_low_raises_error() -> None:
-    """Test high < low raises ValueError."""
-    with pytest.raises(ValueError, match="high price.*must be >= low price"):
-        Price(
-            ticker="AAPL",
-            timestamp=1701388800,
-            open=180.50,
-            high=175.0,  # Less than low
-            low=179.80,
-            close=181.25,
-            volume=50000000,
-        )
+def test_price_high_less_than_low_logs_warning(caplog) -> None:
+    """Test high < low logs warning instead of raising error."""
+    import logging
+    caplog.set_level(logging.INFO)
+    
+    price = Price(
+        ticker="AAPL",
+        timestamp=1701388800,
+        open=180.50,
+        high=175.0,  # Less than low
+        low=179.80,
+        close=181.25,
+        volume=50000000,
+    )
+    
+    # Price should be created successfully
+    assert price.high == 175.0
+    assert price.low == 179.80
+    
+    # Should log warning message
+    assert "high price" in caplog.text
+    assert "must be >= low price" in caplog.text
 
 
-def test_price_high_less_than_open_raises_error() -> None:
-    """Test high < open raises ValueError."""
-    with pytest.raises(ValueError, match="high price.*must be >= open price"):
-        Price(
-            ticker="AAPL",
-            timestamp=1701388800,
-            open=180.50,
-            high=179.0,  # Less than open
-            low=178.0,  # Valid low price
-            close=179.0,
-            volume=50000000,
-        )
+def test_price_high_less_than_open_logs_warning(caplog) -> None:
+    """Test high < open logs warning instead of raising error."""
+    import logging
+    caplog.set_level(logging.INFO)
+    
+    price = Price(
+        ticker="AAPL",
+        timestamp=1701388800,
+        open=180.50,
+        high=179.0,  # Less than open
+        low=178.0,  # Valid low price
+        close=179.0,
+        volume=50000000,
+    )
+    
+    # Price should be created successfully
+    assert price.high == 179.0
+    assert price.open == 180.50
+    
+    # Should log warning message
+    assert "high price" in caplog.text
+    assert "must be >= open price" in caplog.text
 
 
-def test_price_high_less_than_close_raises_error() -> None:
-    """Test high < close raises ValueError."""
-    with pytest.raises(ValueError, match="high price.*must be >= close price"):
-        Price(
-            ticker="AAPL",
-            timestamp=1701388800,
-            open=180.0,
-            high=180.0,  # Less than close
-            low=179.0,  # Valid low price
-            close=181.25,
-            volume=50000000,
-        )
+def test_price_high_less_than_close_logs_warning(caplog) -> None:
+    """Test high < close logs warning instead of raising error."""
+    import logging
+    caplog.set_level(logging.INFO)
+    
+    price = Price(
+        ticker="AAPL",
+        timestamp=1701388800,
+        open=180.0,
+        high=180.0,  # Less than close
+        low=179.0,  # Valid low price
+        close=181.25,
+        volume=50000000,
+    )
+    
+    # Price should be created successfully
+    assert price.high == 180.0
+    assert price.close == 181.25
+    
+    # Should log warning message
+    assert "high price" in caplog.text
+    assert "must be >= close price" in caplog.text
 
 
-def test_price_low_greater_than_open_raises_error() -> None:
-    """Test low > open raises ValueError."""
-    with pytest.raises(ValueError, match="low price.*must be <= open price"):
-        Price(
-            ticker="AAPL",
-            timestamp=1701388800,
-            open=180.50,
-            high=182.75,
-            low=181.0,  # Greater than open
-            close=181.25,
-            volume=50000000,
-        )
+def test_price_low_greater_than_open_logs_warning(caplog) -> None:
+    """Test low > open logs warning instead of raising error."""
+    import logging
+    caplog.set_level(logging.INFO)
+    
+    price = Price(
+        ticker="AAPL",
+        timestamp=1701388800,
+        open=180.50,
+        high=182.75,
+        low=181.0,  # Greater than open
+        close=181.25,
+        volume=50000000,
+    )
+    
+    # Price should be created successfully
+    assert price.low == 181.0
+    assert price.open == 180.50
+    
+    # Should log warning message
+    assert "low price" in caplog.text
+    assert "must be <= open price" in caplog.text
 
 
-def test_price_low_greater_than_close_raises_error() -> None:
-    """Test low > close raises ValueError."""
-    with pytest.raises(ValueError, match="low price.*must be <= close price"):
-        Price(
-            ticker="AAPL",
-            timestamp=1701388800,
-            open=182.0,
-            high=182.75,
-            low=181.25,  # Greater than close
-            close=180.50,
-            volume=50000000,
-        )
+def test_price_low_greater_than_close_logs_warning(caplog) -> None:
+    """Test low > close logs warning instead of raising error."""
+    import logging
+    caplog.set_level(logging.INFO)
+    
+    price = Price(
+        ticker="AAPL",
+        timestamp=1701388800,
+        open=182.0,
+        high=182.75,
+        low=181.25,  # Greater than close
+        close=180.50,
+        volume=50000000,
+    )
+    
+    # Price should be created successfully
+    assert price.low == 181.25
+    assert price.close == 180.50
+    
+    # Should log warning message
+    assert "low price" in caplog.text
+    assert "must be <= close price" in caplog.text
 
 
 def test_price_equality(valid_price: Price) -> None:
