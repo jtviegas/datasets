@@ -1,7 +1,8 @@
 name: articles
 
 on:
-  workflow_dispatch:
+  schedule:
+    - cron: '30 23 * * *'
 
 jobs:
   execute_pipeline:
