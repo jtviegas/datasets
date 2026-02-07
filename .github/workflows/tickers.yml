@@ -30,16 +30,12 @@ jobs:
         cat output.log
     - name: Commit and Push changes
       run: |
-          echo "config statements"
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          echo "git add"
           git add datalake/tickers
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            echo "git commit"
             git commit . -m "auto: update output data"
-            echo "git push"
             git push
           fi
