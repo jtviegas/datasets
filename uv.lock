@@ -2,18 +2,9 @@ version = 1
 revision = 3
 requires-python = ">=3.11"
 resolution-markers = [
-    "python_full_version >= '3.14' and sys_platform == 'win32'",
-    "python_full_version >= '3.14' and sys_platform == 'emscripten'",
-    "python_full_version >= '3.14' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version == '3.13.*' and sys_platform == 'win32'",
-    "python_full_version == '3.12.*' and sys_platform == 'win32'",
-    "python_full_version < '3.12' and sys_platform == 'win32'",
-    "python_full_version == '3.13.*' and sys_platform == 'emscripten'",
-    "python_full_version == '3.12.*' and sys_platform == 'emscripten'",
-    "python_full_version < '3.12' and sys_platform == 'emscripten'",
-    "python_full_version == '3.13.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version == '3.12.*' and sys_platform != 'emscripten' and sys_platform != 'win32'",
-    "python_full_version < '3.12' and sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "python_full_version >= '3.13'",
+    "python_full_version == '3.12.*'",
+    "python_full_version < '3.12'",
 ]
 
 [[package]]
@@ -2554,16 +2545,16 @@ wheels = [
 
 [[package]]
 name = "tenacity"
-version = "9.1.3"
+version = "9.1.4"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/1e/4a/c3357c8742f361785e3702bb4c9c68c4cb37a80aa657640b820669be5af1/tenacity-9.1.3.tar.gz", hash = "sha256:a6724c947aa717087e2531f883bde5c9188f603f6669a9b8d54eb998e604c12a", size = 49002, upload-time = "2026-02-05T06:33:12.866Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/47/c6/ee486fd809e357697ee8a44d3d69222b344920433d3b6666ccd9b374630c/tenacity-9.1.4.tar.gz", hash = "sha256:adb31d4c263f2bd041081ab33b498309a57c77f9acf2db65aadf0898179cf93a", size = 49413, upload-time = "2026-02-07T10:45:33.841Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/64/6b/cdc85edb15e384d8e934aad89638cc8646e118c80de94c60125d0fc0a185/tenacity-9.1.3-py3-none-any.whl", hash = "sha256:51171cfc6b8a7826551e2f029426b10a6af189c5ac6986adcd7eb36d42f17954", size = 28858, upload-time = "2026-02-05T06:33:11.219Z" },
+    { url = "https://files.pythonhosted.org/packages/d7/c1/eb8f9debc45d3b7918a32ab756658a0904732f75e555402972246b0b8e71/tenacity-9.1.4-py3-none-any.whl", hash = "sha256:6095a360c919085f28c6527de529e76a06ad89b23659fa881ae0649b867a9d55", size = 28926, upload-time = "2026-02-07T10:45:32.24Z" },
 ]
 
 [[package]]
 name = "tgedr-dataops"
-version = "1.0.3"
+version = "1.0.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "boto3" },
@@ -2573,9 +2564,9 @@ dependencies = [
     { name = "s3fs" },
     { name = "tgedr-dataops-abs" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/94/0a/aed56b6afdad432557cf95482f9a35de897e3f4396743b4e0a78398b8587/tgedr_dataops-1.0.3.tar.gz", hash = "sha256:6aa8c673f8ffeaf2a4957fe0ee4a9b21e8572edc5a3f6d92cf93a71b70cffe90", size = 17308, upload-time = "2026-02-06T13:44:55.204Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/7a/cc86a6db31a76959f2f3eb58e77e393d2ebe07b7ad5aeb3ce44ea9d4a56b/tgedr_dataops-1.0.4.tar.gz", hash = "sha256:8c65693e8c40bbde25bac87c36df21d9171e7140db436c4fbbe834512608f4c9", size = 17538, upload-time = "2026-02-07T10:49:01.183Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/34/51/2661d4542b82f3c65478a766d6b519d87545e042ded5834cb10add5fd01c/tgedr_dataops-1.0.3-py3-none-any.whl", hash = "sha256:9138dba4580c06a6ec66ad700d3e5adaddc86438aa866d2898eb353c4b6ad444", size = 24620, upload-time = "2026-02-06T13:44:57.144Z" },
+    { url = "https://files.pythonhosted.org/packages/ee/72/2fc47e45deaaf43a06dfcc25e038b11d6ad71a53c7a2aef621c5ed7360d0/tgedr_dataops-1.0.4-py3-none-any.whl", hash = "sha256:0d4aacdc22bd14389b5faf71f19e42f05cfd200e2bb29184971982833f97d2f9", size = 24776, upload-time = "2026-02-07T10:48:59.947Z" },
 ]
 
 [[package]]
@@ -2592,7 +2583,7 @@ wheels = [
 
 [[package]]
 name = "tgedr-datasets"
-version = "0.1.1"
+version = "0.1.2"
 source = { editable = "." }
 dependencies = [
     { name = "bs4" },
@@ -2625,7 +2616,7 @@ requires-dist = [
     { name = "lxml", specifier = ">=6.0.2" },
     { name = "pandas", specifier = "~=2.3.0" },
     { name = "pyarrow", specifier = "~=23.0.0" },
-    { name = "tgedr-dataops", specifier = "~=1.0.3" },
+    { name = "tgedr-dataops", specifier = "==1.0.4" },
     { name = "tgedr-pycommons", specifier = ">=1.0.0" },
 ]
 

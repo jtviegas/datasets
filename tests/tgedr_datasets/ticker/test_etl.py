@@ -159,14 +159,14 @@ def test_load_saves_to_parquet(
     result = ticker_etl.load()
     
     assert result == target_path
-    mock_store.save.assert_called_once()
+    mock_store.update.assert_called_once()
     
     # Verify the DataFrame was passed
-    call_args = mock_store.save.call_args
-    assert isinstance(call_args[0][0], pd.DataFrame)
-    assert call_args[0][1] == target_path
-    assert call_args[1]["partition_fields"] == ["date"]
-    assert call_args[1]["append"] is True
+    call_args = mock_store.update.call_args
+    assert isinstance(call_args[1]["df"], pd.DataFrame)
+    assert call_args[1]["key"] == target_path
+    assert call_args[1]["key_fields"] == ["date", "ticker"]
+
 
 
 @patch("tgedr_datasets.ticker.etl.ParquetStore")
@@ -184,8 +184,8 @@ def test_load_partition_fields(
     
     ticker_etl.load()
     
-    call_args = mock_store.save.call_args
-    assert call_args[1]["partition_fields"] == ["date"]
+    call_args = mock_store.update.call_args
+    assert call_args[1]["key_fields"] == ["date", "ticker"]
 
 
 @patch("tgedr_datasets.ticker.etl.ParquetStore")
@@ -219,7 +219,7 @@ def test_full_etl_pipeline(
     
     # Verify method calls
     mock_fetcher.fetch.assert_called_once()
-    mock_store.save.assert_called_once()
+    mock_store.update.assert_called_once()
 
 
 @patch("tgedr_datasets.ticker.etl.TickerFetcher")
@@ -307,4 +307,4 @@ def test_load_with_configuration_injection(
     # The @inject_configuration decorator should use config
     result = etl.load()
     
-    mock_store.save.assert_called_once()
+    mock_store.update.assert_called_once()

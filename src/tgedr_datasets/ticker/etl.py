@@ -74,7 +74,7 @@ class TickerEtl(Etl):
         logger.info(f"[load|in] ({target})")
 
         store: Store = ParquetStore()
-        store.save(self._result, target, partition_fields=["date"], append=True)
+        store.update(df=self._result, key=target, key_fields=["date", "ticker"])
 
         logger.info(f"[load|out] => {target}")
         return target
