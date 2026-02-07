@@ -626,59 +626,6 @@ wheels = [
 ]
 
 [[package]]
-name = "datasets"
-version = "0.1.0"
-source = { editable = "." }
-dependencies = [
-    { name = "bs4" },
-    { name = "html5lib" },
-    { name = "lxml" },
-    { name = "pandas" },
-    { name = "pyarrow" },
-    { name = "tgedr-dataops" },
-    { name = "tgedr-pycommons" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "bandit" },
-    { name = "genbadge", extra = ["coverage"] },
-    { name = "pre-commit" },
-    { name = "pytest" },
-    { name = "pytest-bdd" },
-    { name = "pytest-cov" },
-    { name = "pytest-mock" },
-    { name = "ruff" },
-    { name = "safety" },
-    { name = "typer" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "bs4", specifier = ">=0.0.2" },
-    { name = "html5lib", specifier = ">=1.1" },
-    { name = "lxml", specifier = ">=6.0.2" },
-    { name = "pandas", specifier = "~=2.3.0" },
-    { name = "pyarrow", specifier = "~=23.0.0" },
-    { name = "tgedr-dataops", specifier = "~=1.0.3" },
-    { name = "tgedr-pycommons", specifier = ">=1.0.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "bandit", specifier = "==1.8.3" },
-    { name = "genbadge", extras = ["coverage"], specifier = "~=1.1.3" },
-    { name = "pre-commit", specifier = "~=4.2.0" },
-    { name = "pytest", specifier = "~=8.3.5" },
-    { name = "pytest-bdd", specifier = "~=8.1.0" },
-    { name = "pytest-cov", specifier = "~=4.1.0" },
-    { name = "pytest-mock", specifier = "~=3.15.0" },
-    { name = "ruff", specifier = "==0.9.10" },
-    { name = "safety", specifier = "==3.5.1" },
-    { name = "typer", specifier = "<0.17.0" },
-]
-
-[[package]]
 name = "defusedxml"
 version = "0.7.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2641,6 +2588,59 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/d2/ac/97171a6f043d7b0b8a65fd3cf666b894adab9b91eccb3fda4ff7b4ef7461/tgedr_dataops_abs-0.0.3.tar.gz", hash = "sha256:bdec811604b7919fd796e7c66424ff16f38317be778245c335da9c0dbaa6e943", size = 8219, upload-time = "2026-02-04T21:48:45.836Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/27/81/d4e930d857ff515b1ef0c598310a69782c5c174bc8eb9793f33122d9eb9c/tgedr_dataops_abs-0.0.3-py3-none-any.whl", hash = "sha256:5d2e18cc060ba270849ce7519dd1c189f042b9f895b2b142f24737fbdff37c1d", size = 10325, upload-time = "2026-02-04T21:48:51.47Z" },
+]
+
+[[package]]
+name = "tgedr-datasets"
+version = "0.1.1"
+source = { editable = "." }
+dependencies = [
+    { name = "bs4" },
+    { name = "html5lib" },
+    { name = "lxml" },
+    { name = "pandas" },
+    { name = "pyarrow" },
+    { name = "tgedr-dataops" },
+    { name = "tgedr-pycommons" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "bandit" },
+    { name = "genbadge", extra = ["coverage"] },
+    { name = "pre-commit" },
+    { name = "pytest" },
+    { name = "pytest-bdd" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
+    { name = "ruff" },
+    { name = "safety" },
+    { name = "typer" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "bs4", specifier = ">=0.0.2" },
+    { name = "html5lib", specifier = ">=1.1" },
+    { name = "lxml", specifier = ">=6.0.2" },
+    { name = "pandas", specifier = "~=2.3.0" },
+    { name = "pyarrow", specifier = "~=23.0.0" },
+    { name = "tgedr-dataops", specifier = "~=1.0.3" },
+    { name = "tgedr-pycommons", specifier = ">=1.0.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "bandit", specifier = "==1.8.3" },
+    { name = "genbadge", extras = ["coverage"], specifier = "~=1.1.3" },
+    { name = "pre-commit", specifier = "~=4.2.0" },
+    { name = "pytest", specifier = "~=8.3.5" },
+    { name = "pytest-bdd", specifier = "~=8.1.0" },
+    { name = "pytest-cov", specifier = "~=4.1.0" },
+    { name = "pytest-mock", specifier = "~=3.15.0" },
+    { name = "ruff", specifier = "==0.9.10" },
+    { name = "safety", specifier = "==3.5.1" },
+    { name = "typer", specifier = "<0.17.0" },
 ]
 
 [[package]]
