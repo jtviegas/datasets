@@ -2554,7 +2554,7 @@ wheels = [
 
 [[package]]
 name = "tgedr-dataops"
-version = "1.0.4"
+version = "1.0.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "boto3" },
@@ -2564,9 +2564,9 @@ dependencies = [
     { name = "s3fs" },
     { name = "tgedr-dataops-abs" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e4/7a/cc86a6db31a76959f2f3eb58e77e393d2ebe07b7ad5aeb3ce44ea9d4a56b/tgedr_dataops-1.0.4.tar.gz", hash = "sha256:8c65693e8c40bbde25bac87c36df21d9171e7140db436c4fbbe834512608f4c9", size = 17538, upload-time = "2026-02-07T10:49:01.183Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e0/bf/bb7570c357ad5b13f11dfcdf2f8c550fbb913e73379961286cb69a149d6d/tgedr_dataops-1.0.5.tar.gz", hash = "sha256:8545f0f7186bd84b4df34ea79dfadb9e3ec0ab9ce78f2aa8dd865bca87debd68", size = 17597, upload-time = "2026-02-07T11:18:00.113Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ee/72/2fc47e45deaaf43a06dfcc25e038b11d6ad71a53c7a2aef621c5ed7360d0/tgedr_dataops-1.0.4-py3-none-any.whl", hash = "sha256:0d4aacdc22bd14389b5faf71f19e42f05cfd200e2bb29184971982833f97d2f9", size = 24776, upload-time = "2026-02-07T10:48:59.947Z" },
+    { url = "https://files.pythonhosted.org/packages/f6/26/54bedc5bd2299c07076b860913786addfe2d8388c65a91eaa637e532e90a/tgedr_dataops-1.0.5-py3-none-any.whl", hash = "sha256:d42b81f8de3c6bf66c913d773a021cd6bcd9c9c034925440bed63bc008ec4b28", size = 24831, upload-time = "2026-02-07T11:18:01.24Z" },
 ]
 
 [[package]]
@@ -2616,7 +2616,7 @@ requires-dist = [
     { name = "lxml", specifier = ">=6.0.2" },
     { name = "pandas", specifier = "~=2.3.0" },
     { name = "pyarrow", specifier = "~=23.0.0" },
-    { name = "tgedr-dataops", specifier = "==1.0.4" },
+    { name = "tgedr-dataops", specifier = "==1.0.5" },
     { name = "tgedr-pycommons", specifier = ">=1.0.0" },
 ]
 
