@@ -84,8 +84,8 @@ def test_extract_with_tickers_and_articles(
 
     # Verify aggregator was called for each ticker on latest date
     assert mock_aggregator.get_news.call_count == 2
-    mock_aggregator.get_news.assert_any_call("AAPL", etl._processing_time, 1)
-    mock_aggregator.get_news.assert_any_call("GOOGL", etl._processing_time, 1)
+    mock_aggregator.get_news.assert_any_call("AAPL", etl._processing_time, 2)
+    mock_aggregator.get_news.assert_any_call("GOOGL", etl._processing_time, 2)
 
     # Verify articles were added to _data
     assert len(etl._data) == 2
@@ -115,7 +115,7 @@ def test_extract_with_base_date_parameter(
     etl.extract()
 
     # Verify aggregator called with custom base_date from config
-    mock_aggregator.get_news.assert_any_call("AAPL", etl._processing_time, 1)
+    mock_aggregator.get_news.assert_any_call("AAPL", etl._processing_time, 2)
 
 
 @patch("tgedr_datasets.article.etl.ArticlesAggregator")

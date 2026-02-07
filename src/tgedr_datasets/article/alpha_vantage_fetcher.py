@@ -119,7 +119,7 @@ class AlphaVantageNewsFetcher(ArticleFetcher):
                         logger.warning(
                             "Skipping Alpha Vantage article due to error: %s", e
                         )
-            logger.debug("[get_articles|out] => %d articles", len(articles))
+            logger.info("[get_articles|out] => %d articles", len(articles))
             return articles  # noqa: TRY300
 
         except requests.exceptions.RequestException as x:

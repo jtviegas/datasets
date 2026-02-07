@@ -103,7 +103,7 @@ class FinnhubNewsFetcher(ArticleFetcher):
                 except (KeyError, TypeError, ValueError):
                     logger.exception("Error parsing Finnhub article: %s", item)
                     continue
-            logger.debug("Retrieved %d articles for query=%s from Finnhub", len(articles), query)
+            logger.info("Retrieved %d articles for query=%s from Finnhub", len(articles), query)
 
         except Exception:
             logger.exception("Failed to fetch news from Finnhub for query=%s", query)
