@@ -23,7 +23,7 @@ jobs:
       id: get_tickers
       run: | 
         .venv/bin/run --module tgedr_datasets.ticker.etl \
-          --classname TickersEtl \
+          --classname TickerEtl \
           --callable run \
           --classparams "{\"configuration\": {\"source\": \"nasdaq100\", \"target\": \"./datalake/tickers\"}}"
     - name: Commit and Push changes
