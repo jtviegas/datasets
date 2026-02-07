@@ -84,7 +84,7 @@ class PricesEtl(Etl):
         logger.info(f"[load|in] ({target_url})")
 
         store: Store = ParquetStore()
-        store.update(df=self._result, key=target_url, key_fields=["ticker", "timestamp"])
+        store.update(df=self._result, key=target_url, key_fields=["id"])
 
         logger.info(f"[load|out] => {target_url}")
         return target_url

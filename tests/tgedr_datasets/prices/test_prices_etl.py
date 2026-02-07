@@ -284,7 +284,7 @@ def test_load_calls_store_update(
     call_kwargs = mock_store.update.call_args[1]
     assert isinstance(call_kwargs["df"], pd.DataFrame)
     assert call_kwargs["key"] == target
-    assert call_kwargs["key_fields"] == ["ticker", "timestamp"]
+    assert call_kwargs["key_fields"] == ["id"]
 
 
 @patch("tgedr_datasets.prices.etl.ParquetStore")
