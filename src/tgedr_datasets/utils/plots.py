@@ -5,10 +5,13 @@ This module contains utility functions to visualize article data from Parquet fi
 including distributions per ticker and articles over processing time.
 """
 
+import logging
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import time
+
+logger = logging.getLogger(__name__)
 
 def plot_distribution_of_articles_per_ticker(data_url: str, plot_url: str) -> None:
     """Plot the distribution of the number of articles per ticker.
@@ -22,6 +25,7 @@ def plot_distribution_of_articles_per_ticker(data_url: str, plot_url: str) -> No
     the distribution of article counts across different tickers. The resulting plot is saved
     to the specified location.
     """
+    logger.info(f"[plot_distribution_of_articles_per_ticker|in] ({data_url}, {plot_url})")
     # Read the articles from the parquet file
     df = pd.read_parquet(data_url)  # noqa: PD901
 
@@ -37,6 +41,7 @@ def plot_distribution_of_articles_per_ticker(data_url: str, plot_url: str) -> No
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.savefig(plot_url, dpi=300, bbox_inches="tight")
+    logger.info("[plot_distribution_of_articles_per_ticker|out]")
 
 def plot_articles_per_processing_time(data_url: str, plot_url: str) -> None:
     """Plot the total number of articles per processing time.
@@ -49,6 +54,7 @@ def plot_articles_per_processing_time(data_url: str, plot_url: str) -> None:
     counts the number of articles for each processing time, and then creates a line chart to visualize
     the trend of article counts over time. The resulting plot is saved to the specified location.
     """
+    logger.info(f"[plot_articles_per_processing_time|in] ({data_url}, {plot_url})")
     # Read the articles from the parquet file
     df = pd.read_parquet(data_url)  # noqa: PD901
 
@@ -72,3 +78,19 @@ def plot_articles_per_processing_time(data_url: str, plot_url: str) -> None:
     plt.gcf().autofmt_xdate()
     plt.tight_layout()
     plt.savefig(plot_url, dpi=300, bbox_inches="tight")
+    logger.info("[plot_articles_per_processing_time|out]")
+
+def do_plots(articles_url: str, plots_url: str) -> None:
+    """Generate plots for article data distributions and trends.
+
+    Args:
+        articles_url: URL or file path to the Parquet file containing article data.
+        plots_url: URL or file path to the directory where the generated plots will be saved.
+
+    This function calls the plotting functions to create visualizations of article distributions
+    per ticker and articles over processing time, saving the plots to the specified directory.
+    """
+    logger.info(f"[do_plots|in] ({articles_url}, {plots_url})")
+    plot_distribution_of_articles_per_ticker(data_url=articles_url, plot_url=f"{plots_url}/article_distribution.png")
+    plot_articles_per_processing_time(data_url=articles_url, plot_url=f"{plots_url}/articles_per_processing_time.png")
+    logger.info("[do_plots|out]")
