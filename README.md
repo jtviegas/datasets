@@ -11,6 +11,14 @@
 [![prices](https://github.com/jtviegas/datasets/actions/workflows/prices.yml/badge.svg)](https://github.com/jtviegas/datasets/actions/workflows/prices.yml) 
 [![articles](https://github.com/jtviegas/datasets/actions/workflows/articles.yml/badge.svg)](https://github.com/jtviegas/datasets/actions/workflows/articles.yml)
 
+### articles
+
+![articles distribution per ticker](assets/article_distribution.png)
+
+![number of articles found per run](assets/articles_per_processing_time.png)
+
+
+
 ## development
 - main requirements:
   - _uv_  

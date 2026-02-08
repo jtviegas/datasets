@@ -1,6 +1,7 @@
 name: articles
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '30 23 * * *'
 
@@ -32,12 +33,21 @@ jobs:
       env:
         NEWSAPI_API_KEY: ${{ secrets.NEWSAPI_API_KEY }} 
         ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }} 
-        FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }} 
+        FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+    - name: 'pipeline task 2: create plots'
+      id: create_plots
+      run: | 
+        .venv/bin/run --module tgedr_datasets.utils.plots \
+          --callable plot_distribution_of_articles_per_ticker \
+          --params "{\"data_url\": \"./datalake/articles\", \"plot_url\": \"./assets/article_distribution.png\"}" | tee output.log
+        .venv/bin/run --module tgedr_datasets.utils.plots \
+          --callable plot_articles_per_processing_time \
+          --params "{\"data_url\": \"./datalake/articles\", \"plot_url\": \"./assets/articles_per_processing_time.png\"}" | tee output.log
     - name: Commit and Push changes
       run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add datalake/articles
+          git add datalake/articles assets/article_distribution.png assets/articles_per_processing_time.png
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
