@@ -31,6 +31,7 @@ def plot_distribution_of_articles_per_ticker(data_url: str, plot_url: str) -> No
 
     # Group by ticker and count the number of articles (using "id" as unique identifier)
     article_counts = df.groupby("query")["id"].count()
+    article_counts = article_counts.rename(lambda x: x[:6])
 
     # Plot the distribution as a bar chart
     plt.figure(figsize=(12, 6))

@@ -21,7 +21,7 @@ jobs:
         uv venv .venv --python 3.11
     - name: install library
       run: uv pip install --python .venv/bin/python tgedr-datasets
-    - name: 'pipeline task 1: get articles'
+    - name: '1: get articles'
       id: get_articles
       run: | 
         [ ! -d "./datalake" ] && mkdir ./datalake
@@ -34,20 +34,42 @@ jobs:
         NEWSAPI_API_KEY: ${{ secrets.NEWSAPI_API_KEY }} 
         ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }} 
         FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
-    - name: 'pipeline task 2: create plots'
+    - name: store dataset temporarily
+      uses: actions/upload-artifact@v4
+      with:
+        name: articles-dataset
+        path: |
+          datalake/articles
+        retention-days: 0
+    - name: '2: create plots'
       id: create_plots
       run: | 
         .venv/bin/run --module tgedr_datasets.utils.plots \
           --callable do_plots \
           --params "{\"articles_url\": \"./datalake/articles\", \"plots_url\": \"./assets\"}" | tee output.log
-    - name: Commit and Push changes
-      run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add datalake/articles assets/article_distribution.png assets/articles_per_processing_time.png
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit . -m "auto: update output data"
-            git push
-          fi
+    # - name: Commit and Push changes
+    #   run: |
+    #       git config --global user.name "github-actions[bot]"
+    #       git config --global user.email "github-actions[bot]@users.noreply.github.com"
+    #       git add datalake/articles assets/article_distribution.png assets/articles_per_processing_time.png
+    #       if git diff --staged --quiet; then
+    #         echo "No changes to commit"
+    #       else
+    #         git commit . -m "auto: update output data"
+    #         git push
+    #       fi
+    - name: '3: update dataset release'
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: latest  # Fixed tag - will update existing release if it exists
+        name: articles
+        body: |
+          Latest automated release from articles pipeline (overwrites previous).
+          Updated on: ${{ github.event.head_commit.timestamp || github.run_started_at }}
+        files: |
+          datalake/articles
+        draft: false
+        prerelease: false
+        overwrite_files: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
