@@ -31,7 +31,6 @@ jobs:
         ./helper.sh download_dataset jtviegas/ticker_analysis tickers.parquet tmp && \
         ./helper.sh download_dataset jtviegas/ticker_analysis articles.parquet tmp
     - name: 'get new articles'
-      id: get_articles
       run: | 
         .venv/bin/run --module tgedr_datasets.article.etl \
           --classname ArticlesEtl \
@@ -43,7 +42,6 @@ jobs:
         ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }} 
         FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
     - name: 'create plots'
-      id: create_plots
       run: | 
         .venv/bin/run --module tgedr_datasets.utils.plots \
           --callable do_plots \

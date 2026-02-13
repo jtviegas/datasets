@@ -16,28 +16,43 @@ jobs:
         fetch-depth: '0'
     - name: 'install uv'
       run: curl -LsSf https://astral.sh/uv/install.sh | sh
+    - name : 'install hf'
+      run: curl -LsSf https://hf.co/cli/install.sh | bash
+    - name: 'login to hf'
+      run: hf auth login --token ${{ secrets.HF_TOKEN }}
     - name: 'setup python env'
       run: |
         uv venv .venv --python 3.11
-    - name: install library
+    - name: 'install datasets library'
       run: uv pip install --python .venv/bin/python tgedr-datasets
-    - name: 'pipeline task 1: get prices'
-      id: get_prices
+    - name: 'download existent dataset'
+      run: |
+        mkdir ./tmp && \
+        ./helper.sh download_dataset jtviegas/ticker_analysis tickers.parquet tmp && \
+        ./helper.sh download_dataset jtviegas/ticker_analysis prices.parquet tmp
+    - name: 'get new prices'
       run: | 
-        [ ! -d "./datalake" ] && mkdir ./datalake
         .venv/bin/run --module tgedr_datasets.prices.etl \
           --classname PricesEtl \
           --callable run \
-          --classparams "{\"configuration\": {\"tickers_url\": \"./datalake/tickers\", \"target_url\": \"./datalake/prices\"}}" | tee output.log
+          --classparams "{\"configuration\": {\"tickers_url\": \"./tmp/tickers.parquet\", \"target_url\": \"./tmp/prices.parquet\"}}" | tee output.log
         cat output.log
-    - name: Commit and Push changes
+    - name: 'create plots'
+      run: | 
+        .venv/bin/run --module tgedr_datasets.utils.plots \
+          --callable do_plots \
+          --params "{\"articles_url\": \"./tmp/articles.parquet\", \"plots_url\": \"./assets\"}" | tee output.log
+    # - name: 'commit and push plots'
+    #   run: |
+    #       git config --global user.name "github-actions[bot]"
+    #       git config --global user.email "github-actions[bot]@users.noreply.github.com"
+    #       git add assets/article_distribution.png assets/articles_per_processing_time.png
+    #       if git diff --staged --quiet; then
+    #         echo "No changes to commit"
+    #       else
+    #         git commit . -m "auto: update output data"
+    #         git push
+    #       fi
+    - name: 'upload updated dataset'
       run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add datalake/prices
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit . -m "auto: update output data"
-            git push
-          fi
+        ./helper.sh upload_dataset jtviegas/ticker_analysis tmp/prices.parquet 
