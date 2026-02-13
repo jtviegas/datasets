@@ -16,61 +16,49 @@ jobs:
         fetch-depth: '0'
     - name: 'install uv'
       run: curl -LsSf https://astral.sh/uv/install.sh | sh
+    - name : 'install hf'
+      run: curl -LsSf https://hf.co/cli/install.sh | bash
+    - name: 'login to hf'
+      run: hf auth login --token ${{ secrets.HF_TOKEN }}
     - name: 'setup python env'
       run: |
         uv venv .venv --python 3.11
-    - name: install library
+    - name: 'install datasets library'
       run: uv pip install --python .venv/bin/python tgedr-datasets
-    - name: '1: get articles'
+    - name: 'download existent dataset'
+      run: |
+        mkdir ./tmp && \
+        download_dataset jtviegas/ticker_analysis tickers.parquet tmp && \
+        download_dataset jtviegas/ticker_analysis articles.parquet tmp
+    - name: 'get new articles'
       id: get_articles
       run: | 
-        [ ! -d "./datalake" ] && mkdir ./datalake
         .venv/bin/run --module tgedr_datasets.article.etl \
           --classname ArticlesEtl \
           --callable run \
-          --classparams "{\"configuration\": {\"tickers_url\": \"./datalake/tickers\", \"target_url\": \"./datalake/articles\"}}" | tee output.log
+          --classparams "{\"configuration\": {\"tickers_url\": \"./tmp/tickers.parquet\", \"target_url\": \"./tmp/articles.parquet\"}}" | tee output.log
         cat output.log
       env:
         NEWSAPI_API_KEY: ${{ secrets.NEWSAPI_API_KEY }} 
         ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }} 
         FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
-    - name: store dataset temporarily
-      uses: actions/upload-artifact@v4
-      with:
-        name: articles-dataset
-        path: |
-          datalake/articles
-        retention-days: 0
-    - name: '2: create plots'
+    - name: 'create plots'
       id: create_plots
       run: | 
         .venv/bin/run --module tgedr_datasets.utils.plots \
           --callable do_plots \
-          --params "{\"articles_url\": \"./datalake/articles\", \"plots_url\": \"./assets\"}" | tee output.log
-    # - name: Commit and Push changes
-    #   run: |
-    #       git config --global user.name "github-actions[bot]"
-    #       git config --global user.email "github-actions[bot]@users.noreply.github.com"
-    #       git add datalake/articles assets/article_distribution.png assets/articles_per_processing_time.png
-    #       if git diff --staged --quiet; then
-    #         echo "No changes to commit"
-    #       else
-    #         git commit . -m "auto: update output data"
-    #         git push
-    #       fi
-    - name: '3: update dataset release'
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: latest  # Fixed tag - will update existing release if it exists
-        name: articles
-        body: |
-          Latest automated release from articles pipeline (overwrites previous).
-          Updated on: ${{ github.event.head_commit.timestamp || github.run_started_at }}
-        files: |
-          datalake/articles
-        draft: false
-        prerelease: false
-        overwrite_files: true
-        fail_on_unmatched_files: true
-        make_latest: true
-        token: ${{ secrets.GITHUB_TOKEN }}
+          --params "{\"articles_url\": \"./tmp/articles.parquet\", \"plots_url\": \"./assets\"}" | tee output.log
+    - name: 'commit and push plots'
+      run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/article_distribution.png assets/articles_per_processing_time.png
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit . -m "auto: update output data"
+            git push
+          fi
+    - name: 'upload updated dataset'
+      run: |
+        ./helper.sh upload_dataset jtviegas/ticker_analysis tmp/articles.parquet 

@@ -177,3 +177,4 @@ unit-tests-results.xml
 .vscode/
 .claude/
 assorted/
+./tmp

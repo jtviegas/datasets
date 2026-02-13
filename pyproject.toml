@@ -16,6 +16,7 @@ dependencies = [
     "yfinance==0.2.66",
     "finnhub-python>=2.4.26",
     "matplotlib>=3.10.8",
+    "datasets>=4.5.0",
 ]
 
 [dependency-groups]
