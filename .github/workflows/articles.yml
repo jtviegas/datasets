@@ -28,8 +28,8 @@ jobs:
     - name: 'download existent dataset'
       run: |
         mkdir ./tmp && \
-        download_dataset jtviegas/ticker_analysis tickers.parquet tmp && \
-        download_dataset jtviegas/ticker_analysis articles.parquet tmp
+        ./helper.sh download_dataset jtviegas/ticker_analysis tickers.parquet tmp && \
+        ./helper.sh download_dataset jtviegas/ticker_analysis articles.parquet tmp
     - name: 'get new articles'
       id: get_articles
       run: | 
