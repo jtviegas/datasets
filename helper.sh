@@ -292,6 +292,51 @@ get_latest_tag() {
   info "[get_latest_tag|out] => ${result}"
 }
 
+download_dataset(){
+  info "[download_dataset|in]"
+
+  [ -z "$1" ] && err "[download_dataset] must provide parameter DATASET" && exit 1
+  local DATASET="$1"
+  [ -z "$2" ] && err "[download_dataset] must provide parameter FILE" && exit 1
+  local FILE="$2"
+
+  local LOCAL_DIR="."
+  [ ! -z "$3" ] && LOCAL_DIR="$3"
+
+  _pwd=`pwd`
+  cd "$this_folder"
+
+  hf download --repo-type dataset --local-dir "$LOCAL_DIR" --force-download "$DATASET" "$FILE"
+  local result="$?"
+  if [ ! "$result" -eq "0" ] ; then err "[download_dataset] download had issues"; fi
+
+  cd "$_pwd"
+
+  local msg="[download_dataset|out] => ${result}"
+  [[ ! "$result" -eq "0" ]] && info "$msg" && exit 1
+  info "$msg"
+}
+
+upload_dataset(){
+  info "[upload_dataset|in]"
+
+  [ -z "$1" ] && err "[upload_dataset] must provide parameter DATASET" && exit 1
+  local DATASET="$1"
+  [ -z "$2" ] && err "[upload_dataset] must provide parameter FILE" && exit 1
+  local FILE="$2"
+
+  _pwd=`pwd`
+  cd "$this_folder"
+
+  hf upload "$DATASET" "$FILE" --repo-type=dataset
+  local result="$?"
+  if [ ! "$result" -eq "0" ] ; then err "[upload_dataset] upload had issues"; fi
+  cd "$_pwd"
+  local msg="[upload_dataset|out] => ${result}"
+  [[ ! "$result" -eq "0" ]] && info "$msg" && exit 1
+  info "$msg"
+}
+
 # <=== MAIN SECTION END  <===
 
 
@@ -313,6 +358,8 @@ usage() {
       - publish                           publishes the package
       - tag <VERSION> <COMMIT_HASH>       tags a specific commit with the version and pushes it to the remote
       - get_latest_tag
+      - download_dataset <DATASET> <FILE> [<LOCAL_DIR>]   downloads a file from a Hugging Face dataset
+      - upload_dataset <DATASET> <FILE>                 uploads a file to a Hugging
 EOM
   exit 1
 }
@@ -351,6 +398,12 @@ case "$1" in
     ;;
   get_latest_tag)
     get_latest_tag
+    ;;
+  download_dataset)
+    download_dataset "$2" "$3" "$4"
+    ;;
+  upload_dataset)
+    upload_dataset "$2" "$3"
     ;;
   *)
     usage
