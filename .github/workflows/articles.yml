@@ -71,5 +71,6 @@ jobs:
         draft: false
         prerelease: false
         overwrite_files: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        fail_on_unmatched_files: true
+        make_latest: true
+        token: ${{ secrets.GITHUB_TOKEN }}
