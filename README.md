@@ -2,7 +2,7 @@
 
 [![cicd](https://github.com/jtviegas/datasets/actions/workflows/cicd.yml/badge.svg)](https://github.com/jtviegas/datasets/actions/workflows/cicd.yml)
 ![Coverage](./coverage.svg)
-[![PyPI](https://img.shields.io/pypi/v/tgedr-dataset)](https://pypi.org/project/tgedr-dataset/)
+[![PyPI](https://img.shields.io/pypi/v/tgedr-datasets)](https://pypi.org/project/tgedr-datasets/)
 
 ## datalake pipelines
 
