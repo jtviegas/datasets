@@ -5,6 +5,10 @@ on:
   schedule:
     - cron: '0 23 7 1,4,7,10 *'
 
+env:
+  HF_DS_TICKERS: "jtviegas/ticker_analysis_tickers"
+  TICKERS_FILE: "tickers.parquet"
+
 jobs:
   execute_pipeline:
     runs-on: ubuntu-24.04
@@ -28,26 +32,31 @@ jobs:
     - name: 'download existent dataset'
       run: |
         mkdir ./tmp && \
-        ./helper.sh download_dataset jtviegas/ticker_analysis tickers.parquet tmp
+        ./helper.sh download_dataset $HF_DS_TICKERS $TICKERS_FILE tmp
     - name: 'get new tickers'
       run: | 
         [ ! -d "./datalake" ] && mkdir ./datalake
         .venv/bin/run --module tgedr_datasets.ticker.etl \
           --classname TickerEtl \
           --callable run \
-          --classparams "{\"configuration\": {\"source\": \"nasdaq100\", \"target_url\": \"./tmp/tickers.parquet\"}}" | tee output.log
+          --classparams "{\"configuration\": {\"source\": \"nasdaq100\", \"target_url\": \"./tmp/$TICKERS_FILE\"}}" | tee output.log
         cat output.log
-    # - name: 'commit and push plots'
-    #   run: |
-    #       git config --global user.name "github-actions[bot]"
-    #       git config --global user.email "github-actions[bot]@users.noreply.github.com"
-    #       git add assets/article_distribution.png assets/articles_per_processing_time.png
-    #       if git diff --staged --quiet; then
-    #         echo "No changes to commit"
-    #       else
-    #         git commit . -m "auto: update output data"
-    #         git push
-    #       fi
+    - name: 'create plots'
+      run: | 
+        .venv/bin/run --module tgedr_datasets.utils.plots \
+          --callable do_plots \
+          --params "{\"base_data_url\": \"./tmp\", \"dataset_name\": \"tickers\", \"base_plots_url\": \"./assets\"}" | tee output.log
+    - name: 'commit and push plots'
+      run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/tickers_distribution.png assets/tickers_per_time.png
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit . -m "auto: update output data"
+            git push
+          fi
     - name: 'upload updated dataset'
       run: |
-        ./helper.sh upload_dataset jtviegas/ticker_analysis tmp/tickers.parquet 
+        ./helper.sh upload_dataset $HF_DS_TICKERS tmp/$TICKERS_FILE 
