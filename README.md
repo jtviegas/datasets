@@ -14,13 +14,27 @@
 
 ### articles
 
-![articles distribution per ticker](assets/article_distribution.png)
+![articles distribution per ticker](assets/articles_distribution.png)
 
-![number of articles found per run](assets/articles_per_processing_time.png)
+![number of articles found per run](assets/articles_per_time.png)
 
-### download datasets
+[download @ hugging face](https://huggingface.co/datasets/jtviegas/ticker_analysis_articles)
 
-[ticker_analysis @ huggingface](https://huggingface.co/datasets/jtviegas/ticker_analysis)
+### prices
+
+![prices distribution per ticker](assets/prices_distribution.png)
+
+![number of prices found per run](assets/prices_per_time.png)
+
+[download @ hugging face](https://huggingface.co/datasets/jtviegas/ticker_analysis_prices)
+
+### tickers
+
+![tickers distribution](assets/tickers_distribution.png)
+
+![tickers of articles found per run](assets/tickers_per_time.png)
+
+[download @ hugging face](https://huggingface.co/datasets/jtviegas/ticker_analysis_tickers)
 
 ## development
 - main requirements:
