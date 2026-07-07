@@ -194,7 +194,16 @@ def test_get_articles_with_default_end_date(
     fetcher = AlphaVantageNewsFetcher()
     fetcher._session = mock_session
 
+    before_call = datetime.now(UTC).strftime("%Y%m%dT%H%M")
+
     articles = fetcher.get_articles("AAPL", test_timestamps["start_date"], end_date=None)
+
+    after_call = datetime.now(UTC).strftime("%Y%m%dT%H%M")
+
+    request_params = mock_session.get.call_args[1]["params"]
+    expected_start = datetime.fromtimestamp(test_timestamps["start_date"], tz=UTC).strftime("%Y%m%dT%H%M")
+    assert request_params["time_from"] == expected_start
+    assert request_params["time_to"] in (before_call, after_call)
 
     assert isinstance(articles, list)
     assert len(articles) == 0

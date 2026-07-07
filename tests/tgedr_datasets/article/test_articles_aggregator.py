@@ -179,6 +179,11 @@ def test_get_news_removes_duplicates(
 
     # Should only have one article since they have the same URL
     assert len(articles) == 1
+    # Dict-based dedupe keeps the last article for duplicate URLs.
+    assert articles[0].url == "https://example.com/duplicate"
+    assert articles[0].title == "Article 1 Duplicate"
+    assert articles[0].source == "Source 2"
+    assert articles[0].timestamp == 1701954000
 
 
 @patch("tgedr_datasets.article.articles_aggregator.AlphaVantageNewsFetcher")
