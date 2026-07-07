@@ -1,6 +1,6 @@
 [project]
 name = "tgedr-datasets"
-version = "0.1.13"
+version = "1.0.0"
 description = "datasets to be consumed elsewhere"
 readme = "README.md"
 requires-python = ">=3.11"
