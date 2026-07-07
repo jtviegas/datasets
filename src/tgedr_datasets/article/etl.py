@@ -26,6 +26,8 @@ class ArticlesEtl(Etl):
     from external sources into a Parquet data store.
     """
 
+    __SEED = 53
+
     def __init__(self, configuration: dict[str, Any] | None = None) -> None:
         """Initialize the ArticlesEtl instance with configuration and setup internal state.
 
@@ -33,10 +35,14 @@ class ArticlesEtl(Etl):
             configuration (dict[str, Any] | None): Optional configuration dictionary.
         """
         super().__init__(configuration)
+
         self._data: list[Article] = []
-        self._result: pd.DataFrame = pd.DataFrame()
         self._store = ParquetStore()
         self._processing_time: int = int(datetime.now(UTC).timestamp())
+        self._new_data: pd.DataFrame = pd.DataFrame()
+        self._new_train: pd.DataFrame = None
+        self._new_validation: pd.DataFrame = None
+
 
     @Etl.inject_configuration
     def extract(self, tickers_url: str, base_date: int |None = None) -> None:
@@ -74,10 +80,14 @@ class ArticlesEtl(Etl):
         logger.info("[transform|in]")
 
         for article in self._data:
-            self._result = pd.concat([self._result, pd.DataFrame([article.to_pd_df_row()])], ignore_index=True)
-        self._result["processing_time"] = self._processing_time
+            self._new_data = pd.concat([self._new_data, pd.DataFrame([article.to_pd_df_row()])], ignore_index=True)
+        self._new_data["processing_time"] = self._processing_time
+        self._new_data = self._new_data.sort_values(by="id")
 
-        logger.info("[transform|out] transformed %d articles", self._result.shape[0])
+        self._new_validation = self._new_data.sample(frac=0.2, random_state=self.__SEED).reset_index(drop=True)
+        self._new_train = self._new_data.drop(self._new_validation.index).reset_index(drop=True)
+
+        logger.info("[transform|out] transformed %d train articles and %d validation articles", self._new_train.shape[0], self._new_validation.shape[0])
 
     @Etl.inject_configuration
     def load(self, target_url: str) -> str:
@@ -93,7 +103,18 @@ class ArticlesEtl(Etl):
         """
         logger.info(f"[load|in] ({target_url})")
 
-        self._store.update(df=self._result, key=target_url, key_fields=["id"])
+        self._store.update(df=self._new_train, key=f"{target_url}/train.parquet", key_fields=["id"])
+        self._store.update(df=self._new_validation, key=f"{target_url}/validation.parquet", key_fields=["id"])
+
+        df_all: pd.DataFrame = pd.concat(
+            [
+                self._store.get(key=f"{target_url}/train.parquet"),
+                self._store.get(key=f"{target_url}/validation.parquet")
+            ], ignore_index=True
+        )
+
+        self._store.save(df=df_all, key=f"{target_url}/articles.parquet", key_fields=["id"])
+
 
         logger.info(f"[load|out] => {target_url}")
         return target_url

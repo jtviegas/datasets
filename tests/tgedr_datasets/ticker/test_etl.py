@@ -112,8 +112,14 @@ def test_transform_ticker_column(ticker_etl: TickerEtl, sample_tickers: list[str
 def test_transform_date_column(ticker_etl: TickerEtl, sample_tickers: list[str]) -> None:
     """Test transform method correctly populates date column with epoch timestamp."""
     ticker_etl._data = sample_tickers
+
+    before_transform = datetime.now(UTC).date()
+    before_epoch = int(datetime(before_transform.year, before_transform.month, before_transform.day, tzinfo=UTC).timestamp())
     
     ticker_etl.transform()
+
+    after_transform = datetime.now(UTC).date()
+    after_epoch = int(datetime(after_transform.year, after_transform.month, after_transform.day, tzinfo=UTC).timestamp())
     
     # Check that date column exists and has integer values
     assert ticker_etl._result["date"].dtype in [int, "int64"]
@@ -121,12 +127,9 @@ def test_transform_date_column(ticker_etl: TickerEtl, sample_tickers: list[str])
     # Check that all rows have the same date
     assert ticker_etl._result["date"].nunique() == 1
     
-    # Check that the date is approximately today's epoch (within 1 day tolerance)
-    today = datetime.now(UTC).date()
-    expected_epoch = int(datetime(today.year, today.month, today.day, tzinfo=UTC).timestamp())
+    # Check the date equals the day start captured before/after transform.
     actual_epoch = ticker_etl._result["date"].iloc[0]
-    
-    assert abs(actual_epoch - expected_epoch) < 86400  # Within 1 day
+    assert actual_epoch in (before_epoch, after_epoch)
 
 
 def test_transform_empty_data(ticker_etl: TickerEtl) -> None:

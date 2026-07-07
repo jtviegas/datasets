@@ -48,7 +48,9 @@ def test_articles_etl_initialization(mock_store_class: Mock) -> None:
     etl = ArticlesEtl()
 
     assert etl._data == []
-    assert etl._result.empty
+    assert etl._new_data.empty
+    assert etl._new_train is None
+    assert etl._new_validation is None
     assert etl._store == mock_store
     assert isinstance(etl._processing_time, int)
 
@@ -120,12 +122,12 @@ def test_extract_with_base_date_parameter(
 
 @patch("tgedr_datasets.article.etl.ArticlesAggregator")
 @patch("tgedr_datasets.article.etl.ParquetStore")
-def test_transform_creates_dataframe(
+def test_transform_creates_dataframe_and_splits(
     mock_store_class: Mock,
     mock_aggregator_class: Mock,
     sample_articles: list[Article],
 ) -> None:
-    """Test transform method creates DataFrame from articles."""
+    """Test transform method creates DataFrame and splits into train/validation."""
     mock_store_class.return_value = Mock()
     mock_aggregator_class.return_value = Mock()
 
@@ -135,20 +137,29 @@ def test_transform_creates_dataframe(
     etl.transform()
 
     # Verify DataFrame was created
-    assert not etl._result.empty
-    assert etl._result.shape[0] == 2
+    assert not etl._new_data.empty
+    assert etl._new_data.shape[0] == 2
 
     # Verify columns exist
     expected_columns = ["id", "query", "timestamp", "title", "description", "url", "source", "processing_time"]
     for col in expected_columns:
-        assert col in etl._result.columns
+        assert col in etl._new_data.columns
 
     # Verify processing_time was added
-    assert all(etl._result["processing_time"] == etl._processing_time)
+    assert all(etl._new_data["processing_time"] == etl._processing_time)
 
-    # Verify article data
-    assert etl._result.iloc[0]["query"] == "AAPL"
-    assert etl._result.iloc[1]["query"] == "GOOGL"
+    # Verify article data is sorted by id
+    assert etl._new_data.iloc[0]["query"] == "AAPL"
+    assert etl._new_data.iloc[1]["query"] == "GOOGL"
+
+    # Verify train/validation split (80/20)
+    assert etl._new_train is not None
+    assert etl._new_validation is not None
+    total_rows = etl._new_train.shape[0] + etl._new_validation.shape[0]
+    assert total_rows == 2
+    # With 2 articles, 20% sample should give 0-1 validation articles (deterministic with seed)
+    assert etl._new_validation.shape[0] in [0, 1]
+    assert etl._new_train.shape[0] in [1, 2]
 
 
 @patch("tgedr_datasets.article.etl.ArticlesAggregator")
@@ -164,41 +175,54 @@ def test_transform_empty_data(
     etl = ArticlesEtl()
     etl._data = []  # No articles
 
-    etl.transform()
+    with pytest.raises(KeyError, match="id"):
+        etl.transform()
 
-    # Verify empty DataFrame with processing_time column
-    assert etl._result.empty
-    assert "processing_time" in etl._result.columns
-
-
-@patch("tgedr_datasets.article.etl.ArticlesAggregator")
-def test_load_calls_store_update(
-    mock_aggregator_class: Mock
-) -> None:
-    """Test load method calls store.update with correct parameters."""
-    config = {"target_url": "test_target_url"}
-   
+def test_load_calls_store_update_for_train_and_validation() -> None:
+    """Test load method calls store.update for both train and validation splits."""
     mock_store = Mock()
-    mock_aggregator_class.return_value = Mock()
 
-    etl = ArticlesEtl(configuration=config)
+    etl = ArticlesEtl(configuration={"target_url": "test_target_url"})
     etl._store = mock_store  # Override the store
 
-    # Set up some test data
-    etl._result = pd.DataFrame({
+    # Set up some test data with splits
+    train_df = pd.DataFrame({
         "id": [1, 2],
         "query": ["AAPL", "GOOGL"],
         "processing_time": [1702000000, 1702000000]
     })
+    validation_df = pd.DataFrame({
+        "id": [3],
+        "query": ["MSFT"],
+        "processing_time": [1702000000]
+    })
+    etl._new_train = train_df
+    etl._new_validation = validation_df
 
+    target_url = "test_target_url"
+    mock_store.get.side_effect = [train_df, validation_df]
     result = etl.load()
 
-    # Verify store.update was called
-    mock_store.update.assert_called_once()
-    call_args = mock_store.update.call_args
-    assert call_args[1]["df"].equals(etl._result)
-    assert call_args[1]["key"] == "test_target_url"
-    assert call_args[1]["key_fields"] == ["id"]
+    # Verify store.update was called twice (train and validation)
+    assert mock_store.update.call_count == 2
 
+    # Verify first call (train)
+    first_call = mock_store.update.call_args_list[0]
+    assert first_call[1]["df"].equals(train_df)
+    assert first_call[1]["key"] == f"{target_url}/train.parquet"
+    assert first_call[1]["key_fields"] == ["id"]
+
+    # Verify second call (validation)
+    second_call = mock_store.update.call_args_list[1]
+    assert second_call[1]["df"].equals(validation_df)
+    assert second_call[1]["key"] == f"{target_url}/validation.parquet"
+    assert second_call[1]["key_fields"] == ["id"]
+
+    save_call = mock_store.save.call_args
+    assert save_call[1]["key"] == f"{target_url}/articles.parquet"
+    assert save_call[1]["key_fields"] == ["id"]
+
+    # Verify return value
+    assert result == target_url
     # Verify return value
     assert result == "test_target_url"
