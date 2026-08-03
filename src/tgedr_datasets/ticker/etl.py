@@ -10,7 +10,7 @@ from typing import Any
 from datetime import datetime, UTC
 import pandas as pd
 from tgedr_dataops_abs.etl import Etl
-from tgedr_dataops.store.parquet_store import ParquetStore
+from tgedr_dataops.store.hf_dataset import DataFrameSplits, HuggingFaceDatasetStore
 
 from tgedr_datasets.ticker.fetcher import TickerFetcher
 
@@ -60,20 +60,21 @@ class TickerEtl(Etl):
         logger.info("[transform|out]")
 
     @Etl.inject_configuration
-    def load(self, target_url: str) -> str:
+    def load(self, dataset: str) -> str:
         """Load transformed ticker data into a Parquet store.
 
         Args:
-            target_url: File path where the Parquet data will be saved.
+            dataset: Name of the dataset where the Parquet data will be saved.
 
         Returns:
             The target path where data was saved.
 
         """
-        logger.info(f"[load|in] ({target_url})")
+        logger.info(f"[load|in] ({dataset})")
 
-        ParquetStore().update(df=self._result, key=target_url, key_fields=["date", "ticker"])
+        dfs: DataFrameSplits = DataFrameSplits(train=self._result)
+        HuggingFaceDatasetStore().update(df=dfs, key=dataset, append=True)
 
-        logger.info(f"[load|out] => {target_url}")
-        return target_url
+        logger.info(f"[load|out] => {dataset}")
+        return dataset
 

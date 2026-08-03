@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 from tests.conftest import assert_frames_are_equal
+from tgedr_dataops.store.hf_dataset import DataFrameSplits
 from tgedr_datasets.prices.etl import PricesEtl
 from tgedr_datasets.prices.price import Price
 
@@ -27,7 +28,6 @@ def sample_prices() -> list[Price]:
         Price(ticker="MSFT", timestamp=1738800000, open=300.0, high=305.0, low=299.0, close=304.0, volume=800000),
         Price(ticker="MSFT", timestamp=1738886400, open=304.0, high=306.0, low=303.0, close=305.0, volume=900000),
     ]
-
 
 @pytest.fixture
 def sample_tickers_df() -> pd.DataFrame:
@@ -51,7 +51,7 @@ def test_prices_etl_initialization() -> None:
 
 def test_prices_etl_initialization_with_config() -> None:
     """Test PricesEtl initialization with configuration."""
-    config = {"tickers_url": "test/tickers", "target_url": "test/prices"}
+    config = {"tickers_dataset": "test/tickers", "target_dataset": "test/prices"}
     etl = PricesEtl(configuration=config)
     
     assert etl._data == []
@@ -59,7 +59,7 @@ def test_prices_etl_initialization_with_config() -> None:
 
 
 
-@patch("tgedr_datasets.prices.etl.ParquetStore")
+@patch("tgedr_datasets.prices.etl.HuggingFaceDatasetStore")
 @patch("tgedr_datasets.prices.etl.PriceFetcher")
 def test_extract_with_default_cutoff_date(
     mock_price_fetcher_class: Mock,
@@ -68,12 +68,12 @@ def test_extract_with_default_cutoff_date(
     sample_prices: list[Price],
 ) -> None:
     """Test extract method with default cutoff date."""
-    config = {"tickers_url": "test/tickers"}
+    config = {"tickers_dataset": "test/tickers"}
     prices_etl = PricesEtl(configuration=config)
     
     # Mock store
     mock_store = Mock()
-    mock_store.get.return_value = sample_tickers_df
+    mock_store.get.return_value = DataFrameSplits(train=sample_tickers_df)
     mock_store_class.return_value = mock_store
     
     # Mock price fetcher
@@ -91,7 +91,7 @@ def test_extract_with_default_cutoff_date(
     assert mock_fetcher.get_prices.call_count == 4
 
 
-@patch("tgedr_datasets.prices.etl.ParquetStore")
+@patch("tgedr_datasets.prices.etl.HuggingFaceDatasetStore")
 @patch("tgedr_datasets.prices.etl.PriceFetcher")
 def test_extract_with_custom_cutoff_date(
     mock_price_fetcher_class: Mock,
@@ -101,12 +101,12 @@ def test_extract_with_custom_cutoff_date(
 ) -> None:
     """Test extract method with custom cutoff date."""
     custom_date = 1738886400  # Some timestamp
-    config = {"tickers_url": "test/tickers", "price_date": custom_date}
+    config = {"tickers_dataset": "test/tickers", "price_date": custom_date}
     prices_etl = PricesEtl(configuration=config)
     
     # Mock store
     mock_store = Mock()
-    mock_store.get.return_value = sample_tickers_df
+    mock_store.get.return_value = DataFrameSplits(train=sample_tickers_df)
     mock_store_class.return_value = mock_store
     
     # Mock price fetcher
@@ -125,7 +125,7 @@ def test_extract_with_custom_cutoff_date(
     assert cutoff_dt.second == 0
 
 
-@patch("tgedr_datasets.prices.etl.ParquetStore")
+@patch("tgedr_datasets.prices.etl.HuggingFaceDatasetStore")
 @patch("tgedr_datasets.prices.etl.PriceFetcher")
 def test_extract_filters_latest_tickers(
     mock_price_fetcher_class: Mock,
@@ -133,7 +133,7 @@ def test_extract_filters_latest_tickers(
     sample_prices: list[Price],
 ) -> None:
     """Test extract filters tickers to only use the latest date."""
-    config = {"tickers_url": "test/tickers"}
+    config = {"tickers_dataset": "test/tickers"}
     prices_etl = PricesEtl(configuration=config)
     
     # DataFrame with multiple dates
@@ -143,7 +143,7 @@ def test_extract_filters_latest_tickers(
     })
     
     mock_store = Mock()
-    mock_store.get.return_value = df_with_multiple_dates
+    mock_store.get.return_value = DataFrameSplits(train=df_with_multiple_dates)
     
     mock_fetcher = Mock()
     mock_fetcher.get_prices.return_value = sample_prices[:1]
@@ -160,7 +160,7 @@ def test_extract_filters_latest_tickers(
     assert "GOOGL" in called_tickers
 
 
-@patch("tgedr_datasets.prices.etl.ParquetStore")
+@patch("tgedr_datasets.prices.etl.HuggingFaceDatasetStore")
 @patch("tgedr_datasets.prices.etl.PriceFetcher")
 def test_extract_logs_info(
     mock_price_fetcher_class: Mock,
@@ -171,11 +171,11 @@ def test_extract_logs_info(
 ) -> None:
     """Test extract method logs information."""
     caplog.set_level(logging.INFO)
-    config = {"tickers_url": "test/tickers"}
+    config = {"tickers_dataset": "test/tickers"}
     prices_etl = PricesEtl(configuration=config)
     
     mock_store = Mock()
-    mock_store.get.return_value = sample_tickers_df
+    mock_store.get.return_value = DataFrameSplits(train=sample_tickers_df)
     
     mock_fetcher = Mock()
     mock_fetcher.get_prices.return_value = sample_prices[:2]
@@ -262,16 +262,17 @@ def test_transform_logs_info(prices_etl: PricesEtl, sample_prices: list[Price], 
     assert "transformed" in caplog.text
 
 
+@patch("tgedr_datasets.prices.etl.HuggingFaceDatasetStore")
 def test_load_calls_store_update(
-   sample_prices: list[Price]
+   mock_store_class: Mock, sample_prices: list[Price]
 ) -> None:
     """Test load method calls store update with correct parameters."""
     target = "test/prices"
-    config = {"target_url": target}
+    config = {"target_dataset": target}
     
     mock_store = Mock()
+    mock_store_class.return_value = mock_store
     prices_etl = PricesEtl(configuration=config)
-    prices_etl._store = mock_store
   
     prices_etl._data = sample_prices
     prices_etl.transform()
@@ -281,19 +282,19 @@ def test_load_calls_store_update(
     assert result == target
     mock_store.update.assert_called_once()
     call_kwargs = mock_store.update.call_args[1]
-    assert isinstance(call_kwargs["df"], pd.DataFrame)
+    assert isinstance(call_kwargs["df"], DataFrameSplits)
     assert call_kwargs["key"] == target
-    assert call_kwargs["key_fields"] == ["id"]
+    assert call_kwargs["append"] is True
 
 
-@patch("tgedr_datasets.prices.etl.ParquetStore")
+@patch("tgedr_datasets.prices.etl.HuggingFaceDatasetStore")
 def test_load_logs_info(
     mock_store_class: Mock, sample_prices: list[Price], caplog
 ) -> None:
     """Test load method logs information."""
     caplog.set_level(logging.INFO)
     target = "test/prices"
-    config = {"target_url": target}
+    config = {"target_dataset": target}
     prices_etl = PricesEtl(configuration=config)
     
     mock_store = Mock()
@@ -308,19 +309,22 @@ def test_load_logs_info(
     assert f"[load|out] => {target}" in caplog.text
 
 
+@patch("tgedr_datasets.prices.etl.HuggingFaceDatasetStore")
 @patch("tgedr_datasets.prices.etl.PriceFetcher")
 def test_full_etl_pipeline(
     mock_price_fetcher_class: Mock,
+    mock_store_class: Mock,
     sample_tickers_df: pd.DataFrame,
     sample_prices: list[Price],
 ) -> None:
     """Test complete ETL pipeline from extract to load."""
-    config = {"tickers_url": "test/tickers", "target_url": "test/prices"}
+    config = {"tickers_dataset": "test/tickers", "target_dataset": "test/prices"}
     prices_etl = PricesEtl(configuration=config)
     
     # Mock store for extract
     mock_store = Mock()
-    mock_store.get.return_value = sample_tickers_df
+    mock_store.get.return_value = DataFrameSplits(train=sample_tickers_df)
+    mock_store_class.return_value = mock_store
     prices_etl._store = mock_store
     
     # Mock price fetcher
@@ -352,11 +356,13 @@ def test_extract_with_configuration_injection(
     sample_prices: list[Price],
 ) -> None:
     """Test extract method with configuration injection."""
-    config = {"tickers_url": "test/configured_tickers", "price_date": 1738886400}
+
+    config = {"tickers_dataset": "test/configured_tickers", "price_date": 1738886400}
     etl = PricesEtl(configuration=config)
     
     mock_store = Mock()
-    mock_store.get.return_value = sample_tickers_df
+
+    mock_store.get.return_value = DataFrameSplits(train=sample_tickers_df)
     etl._store = mock_store
     
     mock_fetcher = Mock()
@@ -368,15 +374,16 @@ def test_extract_with_configuration_injection(
     mock_store.get.assert_called_once()
 
 
+@patch("tgedr_datasets.prices.etl.HuggingFaceDatasetStore")
 def test_load_with_configuration_injection(
-    sample_prices: list[Price]
+    mock_store_class: Mock, sample_prices: list[Price]
 ) -> None:
     """Test load method with configuration injection."""
-    config = {"target_url": "test/configured_prices"}
+    config = {"target_dataset": "test/configured_prices"}
     etl = PricesEtl(configuration=config)
     
     mock_store = Mock()
-    etl._store = mock_store
+    mock_store_class.return_value = mock_store
     etl._data = sample_prices
     etl.transform()
     # The @inject_configuration decorator should use config

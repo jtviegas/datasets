@@ -7,10 +7,7 @@ on:
 
 env:
   HF_DS_TICKERS: "jtviegas/ticker_analysis_tickers"
-  TICKERS_FILE: "tickers.parquet"
   HF_DS_ARTICLES: "jtviegas/ticker_analysis_articles"
-  ARTICLES_TRAIN_FILE: "train.parquet"
-  ARTICLES_VALIDATION_FILE: "validation.parquet"
   
 jobs:
   execute_pipeline:
@@ -23,49 +20,49 @@ jobs:
         fetch-depth: '0'
     - name: 'install uv'
       run: curl -LsSf https://astral.sh/uv/install.sh | sh
-    - name : 'install hf'
-      run: curl -LsSf https://hf.co/cli/install.sh | bash
-    - name: 'login to hf'
-      run: hf auth login --token ${{ secrets.HF_TOKEN }}
+    # - name : 'install hf'
+    #   run: curl -LsSf https://hf.co/cli/install.sh | bash
+    # - name: 'login to hf'
+    #   run: hf auth login --token ${{ secrets.HF_TOKEN }}
     - name: 'setup python env'
       run: |
         uv venv .venv --python 3.11
     - name: 'install datasets library'
       run: uv pip install --python .venv/bin/python tgedr-datasets
-    - name: 'download existent dataset'
-      run: |
-        mkdir ./tmp && \
-        ./helper.sh download_dataset $HF_DS_TICKERS $TICKERS_FILE tmp && \
-        ./helper.sh download_dataset $HF_DS_ARTICLES $ARTICLES_TRAIN_FILE tmp && \
-        ./helper.sh download_dataset $HF_DS_ARTICLES $ARTICLES_VALIDATION_FILE tmp
+    # - name: 'download existent dataset'
+    #   run: |
+    #     mkdir ./tmp && \
+    #     ./helper.sh download_dataset $HF_DS_TICKERS $TICKERS_FILE tmp && \
+    #     ./helper.sh download_dataset $HF_DS_ARTICLES $ARTICLES_TRAIN_FILE tmp && \
+    #     ./helper.sh download_dataset $HF_DS_ARTICLES $ARTICLES_VALIDATION_FILE tmp
     - name: 'get new articles'
       run: | 
         .venv/bin/run --module tgedr_datasets.article.etl \
           --classname ArticlesEtl \
           --callable run \
-          --classparams "{\"configuration\": {\"tickers_url\": \"./tmp/$TICKERS_FILE\", \"target_url\": \"./tmp\"}}" | tee output.log
-        cat output.log
+          --classparams "{\"configuration\": {\"tickers_dataset\": \"${{ env.HF_DS_TICKERS }}\", \"target_dataset\": \"${{ env.HF_DS_ARTICLES }}\"}}"
       env:
         NEWSAPI_API_KEY: ${{ secrets.NEWSAPI_API_KEY }} 
         ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }} 
         FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
-    - name: 'create plots'
-      run: | 
-        .venv/bin/run --module tgedr_datasets.utils.plots \
-          --callable do_plots \
-          --params "{\"base_data_url\": \"./tmp\", \"dataset_name\": \"articles\", \"base_plots_url\": \"./assets\"}" | tee output.log
-    - name: 'commit and push plots'
-      run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add assets/articles_distribution.png assets/articles_per_time.png
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit . -m "auto: update output data"
-            git push
-          fi
-    - name: 'upload updated dataset'
-      run: |
-        ./helper.sh upload_dataset $HF_DS_ARTICLES tmp/$ARTICLES_TRAIN_FILE && \
-        ./helper.sh upload_dataset $HF_DS_ARTICLES tmp/$ARTICLES_VALIDATION_FILE
+        HF_TOKEN: ${{ secrets.HF_TOKEN }}
+    # - name: 'create plots'
+    #   run: | 
+    #     .venv/bin/run --module tgedr_datasets.utils.plots \
+    #       --callable do_plots \
+    #       --params "{\"base_data_url\": \"./tmp\", \"dataset_name\": \"articles\", \"base_plots_url\": \"./assets\"}" | tee output.log
+    # - name: 'commit and push plots'
+    #   run: |
+    #       git config --global user.name "github-actions[bot]"
+    #       git config --global user.email "github-actions[bot]@users.noreply.github.com"
+    #       git add assets/articles_distribution.png assets/articles_per_time.png
+    #       if git diff --staged --quiet; then
+    #         echo "No changes to commit"
+    #       else
+    #         git commit . -m "auto: update output data"
+    #         git push
+    #       fi
+    # - name: 'upload updated dataset'
+    #   run: |
+    #     ./helper.sh upload_dataset $HF_DS_ARTICLES tmp/$ARTICLES_TRAIN_FILE && \
+    #     ./helper.sh upload_dataset $HF_DS_ARTICLES tmp/$ARTICLES_VALIDATION_FILE

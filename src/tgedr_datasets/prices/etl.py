@@ -10,7 +10,7 @@ from typing import Any
 from datetime import datetime, UTC
 import pandas as pd
 from tgedr_dataops_abs.etl import Etl
-from tgedr_dataops.store.parquet_store import ParquetStore
+from tgedr_dataops.store.hf_dataset import DataFrameSplits, HuggingFaceDatasetStore
 from tgedr_datasets.prices.price import Price  # noqa: TC001
 from tgedr_datasets.prices.price_fetcher import PriceFetcher
 
@@ -30,26 +30,26 @@ class PricesEtl(Etl):
         super().__init__(configuration)
         self._data: list[Price] = []
         self._result: pd.DataFrame = pd.DataFrame()
-        self._store = ParquetStore()
         self._cutoff_date: int = int(datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
+        self._store: HuggingFaceDatasetStore = HuggingFaceDatasetStore()
 
 
     @Etl.inject_configuration
-    def extract(self, tickers_url: str, price_date: int |None = None) -> None:
+    def extract(self, tickers_dataset: str, price_date: int |None = None) -> None:
         """Extract ticker data and fetch prices for each ticker.
 
         Args:
-            tickers_url: URL or key to the tickers data store.
+            tickers_dataset: URL or key to the tickers dataset.
             price_date: Optional cutoff timestamp for price data. If not provided,
                        uses the current date at midnight UTC.
         """
-        logger.info(f"[extract|in] ({tickers_url}, {price_date})")
+        logger.info(f"[extract|in] ({tickers_dataset}, {price_date})")
 
         if price_date is not None:
             cutoff_ts_dt = datetime.fromtimestamp(price_date, tz=UTC)
             self._cutoff_date: int = int(cutoff_ts_dt.replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
 
-        df_tickers = self._store.get(key=tickers_url)
+        df_tickers = self._store.get(key=tickers_dataset).train
         max_date: int = df_tickers["date"].max()
         tickers = df_tickers[df_tickers["date"] == max_date]["ticker"].tolist()
         max_data_formatted = datetime.fromtimestamp(max_date, tz=UTC).strftime("%Y-%m-%d")
@@ -71,18 +71,19 @@ class PricesEtl(Etl):
         logger.info("[transform|out] transformed %d prices", self._result.shape[0])
 
     @Etl.inject_configuration
-    def load(self, target_url: str) -> str:
+    def load(self, target_dataset: str) -> str:
         """Load transformed price data into the target data store.
 
         Args:
-            target_url: URL or key to the target data store location.
+            target_dataset: URL or key to the target data store location.
 
         Returns:
             The target URL where the data was loaded.
         """
-        logger.info(f"[load|in] ({target_url})")
+        logger.info(f"[load|in] ({target_dataset})")
 
-        self._store.update(df=self._result, key=target_url, key_fields=["id"])
+        dfs: DataFrameSplits = DataFrameSplits(train=self._result)
+        HuggingFaceDatasetStore().update(df=dfs, key=target_dataset, append=True)
 
-        logger.info(f"[load|out] => {target_url}")
-        return target_url
+        logger.info(f"[load|out] => {target_dataset}")
+        return target_dataset

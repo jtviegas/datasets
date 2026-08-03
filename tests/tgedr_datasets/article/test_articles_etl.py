@@ -2,7 +2,9 @@
 import pandas as pd
 import pytest
 from unittest.mock import Mock, patch
+from pandas.testing import assert_frame_equal
 
+from tgedr_dataops.store.hf_dataset import DataFrameSplits
 from tgedr_datasets.article.etl import ArticlesEtl
 from tgedr_datasets.article.article import Article
 
@@ -39,7 +41,7 @@ def sample_articles() -> list[Article]:
     ]
 
 
-@patch("tgedr_datasets.article.etl.ParquetStore")
+@patch("tgedr_datasets.article.etl.HuggingFaceDatasetStore")
 def test_articles_etl_initialization(mock_store_class: Mock) -> None:
     """Test ArticlesEtl initializes correctly."""
     mock_store = Mock()
@@ -49,27 +51,23 @@ def test_articles_etl_initialization(mock_store_class: Mock) -> None:
 
     assert etl._data == []
     assert etl._new_data.empty
-    assert etl._new_train is None
-    assert etl._new_validation is None
     assert etl._store == mock_store
     assert isinstance(etl._processing_time, int)
 
 
 @patch("tgedr_datasets.article.etl.ArticlesAggregator")
-@patch("tgedr_datasets.article.etl.ParquetStore")
 def test_extract_with_tickers_and_articles(
-    mock_store_class: Mock,
     mock_aggregator_class: Mock,
     sample_tickers_df: pd.DataFrame,
     sample_articles: list[Article],
 ) -> None:
     """Test extract method processes tickers and aggregates articles."""
-    config = {"tickers_url": "test_tickers_url"}
+    config = {"tickers_dataset": "test_tickers_dataset"}
     etl = ArticlesEtl(configuration=config)
 
     # Setup mocks
     mock_store = Mock()
-    mock_store.get.return_value = sample_tickers_df
+    mock_store.get.return_value = DataFrameSplits(train=sample_tickers_df)
     etl._store = mock_store  # Override the store
 
     mock_aggregator = Mock()
@@ -82,7 +80,7 @@ def test_extract_with_tickers_and_articles(
     etl.extract()
 
     # Verify store.get was called
-    mock_store.get.assert_called_once_with(key="test_tickers_url")
+    mock_store.get.assert_called_once_with(key="test_tickers_dataset")
 
     # Verify aggregator was called for each ticker on latest date
     assert mock_aggregator.get_news.call_count == 2
@@ -96,18 +94,16 @@ def test_extract_with_tickers_and_articles(
 
 
 @patch("tgedr_datasets.article.etl.ArticlesAggregator")
-@patch("tgedr_datasets.article.etl.ParquetStore")
 def test_extract_with_base_date_parameter(
-    mock_store_class: Mock,
     mock_aggregator_class: Mock,
     sample_tickers_df: pd.DataFrame,
 ) -> None:
     """Test extract method uses base_date parameter when provided."""
-    config = {"tickers_url": "test_tickers_url", "base_date": 1702100000}
+    config = {"tickers_dataset": "test_tickers_dataset", "base_date": 1702100000}
     etl = ArticlesEtl(configuration=config)
 
     mock_store = Mock()
-    mock_store.get.return_value = sample_tickers_df.sort_values("ticker", ascending=False)  # Ensure latest date is first
+    mock_store.get.return_value = DataFrameSplits(train=sample_tickers_df.sort_values("ticker", ascending=False))  # Ensure latest date is first
     etl._store = mock_store
 
     mock_aggregator = Mock()
@@ -121,14 +117,11 @@ def test_extract_with_base_date_parameter(
 
 
 @patch("tgedr_datasets.article.etl.ArticlesAggregator")
-@patch("tgedr_datasets.article.etl.ParquetStore")
-def test_transform_creates_dataframe_and_splits(
-    mock_store_class: Mock,
+def test_transform_creates_dataframe(
     mock_aggregator_class: Mock,
     sample_articles: list[Article],
 ) -> None:
-    """Test transform method creates DataFrame and splits into train/validation."""
-    mock_store_class.return_value = Mock()
+    """Test transform method creates DataFrame."""
     mock_aggregator_class.return_value = Mock()
 
     etl = ArticlesEtl()
@@ -152,24 +145,12 @@ def test_transform_creates_dataframe_and_splits(
     assert etl._new_data.iloc[0]["query"] == "AAPL"
     assert etl._new_data.iloc[1]["query"] == "GOOGL"
 
-    # Verify train/validation split (80/20)
-    assert etl._new_train is not None
-    assert etl._new_validation is not None
-    total_rows = etl._new_train.shape[0] + etl._new_validation.shape[0]
-    assert total_rows == 2
-    # With 2 articles, 20% sample should give 0-1 validation articles (deterministic with seed)
-    assert etl._new_validation.shape[0] in [0, 1]
-    assert etl._new_train.shape[0] in [1, 2]
-
 
 @patch("tgedr_datasets.article.etl.ArticlesAggregator")
-@patch("tgedr_datasets.article.etl.ParquetStore")
 def test_transform_empty_data(
-    mock_store_class: Mock,
     mock_aggregator_class: Mock,
 ) -> None:
     """Test transform method handles empty article data."""
-    mock_store_class.return_value = Mock()
     mock_aggregator_class.return_value = Mock()
 
     etl = ArticlesEtl()
@@ -178,51 +159,31 @@ def test_transform_empty_data(
     with pytest.raises(KeyError, match="id"):
         etl.transform()
 
-def test_load_calls_store_update_for_train_and_validation() -> None:
-    """Test load method calls store.update for both train and validation splits."""
+def test_load_calls_store_update() -> None:
+    """Test load method calls store.update with a single DataFrameSplits train split."""
     mock_store = Mock()
 
-    etl = ArticlesEtl(configuration={"target_url": "test_target_url"})
+    etl = ArticlesEtl(configuration={"target_dataset": "test_target_dataset"})
     etl._store = mock_store  # Override the store
 
-    # Set up some test data with splits
-    train_df = pd.DataFrame({
+    # Set up some test data
+    data = pd.DataFrame({
         "id": [1, 2],
         "query": ["AAPL", "GOOGL"],
-        "processing_time": [1702000000, 1702000000]
+        "processing_time": [[1712345600], [1712345600]]
     })
-    validation_df = pd.DataFrame({
-        "id": [3],
-        "query": ["MSFT"],
-        "processing_time": [1702000000]
-    })
-    etl._new_train = train_df
-    etl._new_validation = validation_df
+    etl._new_data = data
 
-    target_url = "test_target_url"
-    mock_store.get.side_effect = [train_df, validation_df]
+    target_dataset = "test_target_dataset"
     result = etl.load()
 
-    # Verify store.update was called twice (train and validation)
-    assert mock_store.update.call_count == 2
-
-    # Verify first call (train)
-    first_call = mock_store.update.call_args_list[0]
-    assert first_call[1]["df"].equals(train_df)
-    assert first_call[1]["key"] == f"{target_url}/train.parquet"
-    assert first_call[1]["key_fields"] == ["id"]
-
-    # Verify second call (validation)
-    second_call = mock_store.update.call_args_list[1]
-    assert second_call[1]["df"].equals(validation_df)
-    assert second_call[1]["key"] == f"{target_url}/validation.parquet"
-    assert second_call[1]["key_fields"] == ["id"]
-
-    save_call = mock_store.save.call_args
-    assert save_call[1]["key"] == f"{target_url}/articles.parquet"
-    assert save_call[1]["key_fields"] == ["id"]
+    # Verify store.update was called once with a DataFrameSplits
+    mock_store.update.assert_called_once()
+    call = mock_store.update.call_args
+    assert call[1]["key"] == target_dataset
+    assert call[1]["append"] is True
+    assert isinstance(call[1]["df"], DataFrameSplits)
+    assert_frame_equal(call[1]["df"].train, data)
 
     # Verify return value
-    assert result == target_url
-    # Verify return value
-    assert result == "test_target_url"
+    assert result == "test_target_dataset"

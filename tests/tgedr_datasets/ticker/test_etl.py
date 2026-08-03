@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch, MagicMock
 import pandas as pd
 import pytest
 
+from tgedr_dataops.store.hf_dataset import DataFrameSplits
 from tgedr_datasets.ticker.etl import TickerEtl
 
 
@@ -144,14 +145,14 @@ def test_transform_empty_data(ticker_etl: TickerEtl) -> None:
     assert "date" in ticker_etl._result.columns
 
 
-@patch("tgedr_datasets.ticker.etl.ParquetStore")
+@patch("tgedr_datasets.ticker.etl.HuggingFaceDatasetStore")
 def test_load_saves_to_parquet(
     mock_store_class: Mock, sample_tickers: list[str]
 ) -> None:
-    """Test load method saves DataFrame to Parquet store."""
+    """Test load method saves DataFrameSplits to Hugging Face store."""
 
     target_path = "/tmp/test_tickers"
-    ticker_etl = TickerEtl(configuration={"target_url": target_path})
+    ticker_etl = TickerEtl(configuration={"dataset": target_path})
     mock_store = Mock()
     mock_store_class.return_value = mock_store
     
@@ -164,21 +165,21 @@ def test_load_saves_to_parquet(
     assert result == target_path
     mock_store.update.assert_called_once()
     
-    # Verify the DataFrame was passed
+    # Verify the DataFrameSplits was passed with append=True
     call_args = mock_store.update.call_args
-    assert isinstance(call_args[1]["df"], pd.DataFrame)
+    assert isinstance(call_args[1]["df"], DataFrameSplits)
+    assert call_args[1]["df"].train.equals(ticker_etl._result)
     assert call_args[1]["key"] == target_path
-    assert call_args[1]["key_fields"] == ["date", "ticker"]
+    assert call_args[1]["append"] is True
 
 
-
-@patch("tgedr_datasets.ticker.etl.ParquetStore")
-def test_load_partition_fields(
+@patch("tgedr_datasets.ticker.etl.HuggingFaceDatasetStore")
+def test_load_uses_append_flag(
     mock_store_class: Mock, sample_tickers: list[str]
 ) -> None:
-    """Test load method uses correct partition fields."""
+    """Test load method updates the store with append=True."""
 
-    ticker_etl = TickerEtl(configuration={"target_url": "/tmp/test"})
+    ticker_etl = TickerEtl(configuration={"dataset": "/tmp/test"})
     mock_store = Mock()
     mock_store_class.return_value = mock_store
     
@@ -188,10 +189,11 @@ def test_load_partition_fields(
     ticker_etl.load()
     
     call_args = mock_store.update.call_args
-    assert call_args[1]["key_fields"] == ["date", "ticker"]
+    assert call_args[1]["append"] is True
+    assert call_args[1]["key"] == "/tmp/test"
 
 
-@patch("tgedr_datasets.ticker.etl.ParquetStore")
+@patch("tgedr_datasets.ticker.etl.HuggingFaceDatasetStore")
 @patch("tgedr_datasets.ticker.etl.TickerFetcher")
 def test_full_etl_pipeline(
     mock_fetcher_class: Mock,
@@ -200,7 +202,7 @@ def test_full_etl_pipeline(
 ) -> None:
     """Test complete ETL pipeline from extract to load."""
 
-    ticker_etl = TickerEtl(configuration={"source": "sp500", "target_url": "/tmp/tickers"})
+    ticker_etl = TickerEtl(configuration={"source": "sp500", "dataset": "/tmp/tickers"})
     # Setup mocks
     mock_fetcher = Mock()
     mock_fetcher.fetch.return_value = sample_tickers
@@ -232,7 +234,7 @@ def test_extract_logs_ticker_count(
     """Test extract method logs the number of tickers fetched."""
     caplog.set_level(logging.INFO)
     
-    ticker_etl = TickerEtl(configuration={"source": "sp500", "target_url": "/tmp/tickers"})
+    ticker_etl = TickerEtl(configuration={"source": "sp500", "dataset": "/tmp/tickers"})
     mock_fetcher = Mock()
     mock_fetcher.fetch.return_value = sample_tickers
     mock_fetcher_class.return_value = mock_fetcher
@@ -255,14 +257,14 @@ def test_transform_logs_entry_exit(
     assert "[transform|out]" in caplog.text
 
 
-@patch("tgedr_datasets.ticker.etl.ParquetStore")
+@patch("tgedr_datasets.ticker.etl.HuggingFaceDatasetStore")
 def test_load_logs_target_path(
     mock_store_class: Mock, sample_tickers: list[str], caplog
 ) -> None:
     """Test load method logs the target path."""
     
     target = "/tmp/test_path"
-    ticker_etl = TickerEtl(configuration={"source": "sp500", "target_url": target})
+    ticker_etl = TickerEtl(configuration={"source": "sp500", "dataset": target})
     caplog.set_level(logging.INFO)
     mock_store = Mock()
     mock_store_class.return_value = mock_store
@@ -294,7 +296,7 @@ def test_extract_with_configuration_injection(
     mock_fetcher.fetch.assert_called_once()
 
 
-@patch("tgedr_datasets.ticker.etl.ParquetStore")
+@patch("tgedr_datasets.ticker.etl.HuggingFaceDatasetStore")
 def test_load_with_configuration_injection(
     mock_store_class: Mock, sample_tickers: list[str]
 ) -> None:
@@ -302,7 +304,7 @@ def test_load_with_configuration_injection(
     mock_store = Mock()
     mock_store_class.return_value = mock_store
     
-    config = {"target_url": "/tmp/configured_path"}
+    config = {"dataset": "/tmp/configured_path"}
     etl = TickerEtl(configuration=config)
     etl._data = sample_tickers
     etl.transform()
