@@ -175,7 +175,7 @@ def test_load_calls_store_update() -> None:
     etl._new_data = data
 
     target_dataset = "test_target_dataset"
-    result = etl.load()
+    etl.load()
 
     # Verify store.update was called once with a DataFrameSplits
     mock_store.update.assert_called_once()
@@ -184,6 +184,3 @@ def test_load_calls_store_update() -> None:
     assert call[1]["append"] is True
     assert isinstance(call[1]["df"], DataFrameSplits)
     assert_frame_equal(call[1]["df"].train, data)
-
-    # Verify return value
-    assert result == "test_target_dataset"

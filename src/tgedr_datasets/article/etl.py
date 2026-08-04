@@ -102,4 +102,3 @@ class ArticlesEtl(Etl):
         self._store.update(df=dfs, key=target_dataset, append=True)
 
         logger.info(f"[load|out] => {target_dataset}")
-        return target_dataset

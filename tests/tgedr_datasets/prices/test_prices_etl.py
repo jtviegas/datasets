@@ -277,9 +277,8 @@ def test_load_calls_store_update(
     prices_etl._data = sample_prices
     prices_etl.transform()
     
-    result = prices_etl.load()
+    prices_etl.load()
     
-    assert result == target
     mock_store.update.assert_called_once()
     call_kwargs = mock_store.update.call_args[1]
     assert isinstance(call_kwargs["df"], DataFrameSplits)
@@ -338,12 +337,11 @@ def test_full_etl_pipeline(
     mock_store.get.assert_called_once()
 
     prices_etl.transform()
-    result = prices_etl.load()
+    prices_etl.load()
     
     # Verify results
     assert len(prices_etl._data) > 0
     assert not prices_etl._result.empty
-    assert result == "test/prices"
     
     # Verify method calls
     mock_store.update.assert_called_once()
@@ -387,6 +385,6 @@ def test_load_with_configuration_injection(
     etl._data = sample_prices
     etl.transform()
     # The @inject_configuration decorator should use config
-    result = etl.load()
+    etl.load()
     
     mock_store.update.assert_called_once()

@@ -160,9 +160,8 @@ def test_load_saves_to_parquet(
     ticker_etl._data = sample_tickers
     ticker_etl.transform()
     
-    result = ticker_etl.load()
+    ticker_etl.load()
     
-    assert result == target_path
     mock_store.update.assert_called_once()
     
     # Verify the DataFrameSplits was passed with append=True
@@ -214,13 +213,12 @@ def test_full_etl_pipeline(
     # Run full pipeline
     ticker_etl.extract()
     ticker_etl.transform()
-    result_path = ticker_etl.load()
+    ticker_etl.load()
     
     # Verify results
     assert ticker_etl._data == sample_tickers
     assert isinstance(ticker_etl._result, pd.DataFrame)
     assert len(ticker_etl._result) == len(sample_tickers)
-    assert result_path == "/tmp/tickers"
     
     # Verify method calls
     mock_fetcher.fetch.assert_called_once()
@@ -310,6 +308,6 @@ def test_load_with_configuration_injection(
     etl.transform()
     
     # The @inject_configuration decorator should use config
-    result = etl.load()
+    etl.load()
     
     mock_store.update.assert_called_once()

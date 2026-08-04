@@ -86,4 +86,3 @@ class PricesEtl(Etl):
         HuggingFaceDatasetStore().update(df=dfs, key=target_dataset, append=True)
 
         logger.info(f"[load|out] => {target_dataset}")
-        return target_dataset

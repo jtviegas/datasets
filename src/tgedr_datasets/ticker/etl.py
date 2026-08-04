@@ -76,5 +76,5 @@ class TickerEtl(Etl):
         HuggingFaceDatasetStore().update(df=dfs, key=dataset, append=True)
 
         logger.info(f"[load|out] => {dataset}")
-        return dataset
+
 
