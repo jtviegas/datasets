@@ -20,20 +20,11 @@ jobs:
         fetch-depth: '0'
     - name: 'install uv'
       run: curl -LsSf https://astral.sh/uv/install.sh | sh
-    # - name : 'install hf'
-    #   run: curl -LsSf https://hf.co/cli/install.sh | bash
-    # - name: 'login to hf'
-    #   run: hf auth login --token ${{ secrets.HF_TOKEN }}
     - name: 'setup python env'
       run: |
         uv venv .venv --python 3.11
     - name: 'install datasets library'
       run: uv pip install --python .venv/bin/python tgedr-datasets
-    # - name: 'download existent dataset'
-    #   run: |
-    #     mkdir ./tmp && \
-    #     ./helper.sh download_dataset $HF_DS_TICKERS $TICKERS_FILE tmp && \
-    #     ./helper.sh download_dataset $HF_DS_PRICES $PRICES_FILE tmp
     - name: 'get new prices'
       run: | 
         .venv/bin/run --module tgedr_datasets.prices.etl \
@@ -42,19 +33,4 @@ jobs:
           --classparams "{\"configuration\": {\"tickers_dataset\": \"${{ env.HF_DS_TICKERS }}\", \"target_dataset\": \"${{ env.HF_DS_PRICES }}\"}}"
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
-    # - name: 'create plots'
-    #   run: | 
-    #     .venv/bin/run --module tgedr_datasets.utils.plots \
-    #       --callable do_plots \
-    #       --params "{\"base_data_url\": \"./tmp\", \"dataset_name\": \"prices\", \"base_plots_url\": \"./assets\"}" | tee output.log
-    # - name: 'commit and push plots'
-    #   run: |
-    #       git config --global user.name "github-actions[bot]"
-    #       git config --global user.email "github-actions[bot]@users.noreply.github.com"
-    #       git add assets/prices_distribution.png assets/prices_per_time.png
-    #       if git diff --staged --quiet; then
-    #         echo "No changes to commit"
-    #       else
-    #         git commit . -m "auto: update output data"
-    #         git push
-    #       fi
+

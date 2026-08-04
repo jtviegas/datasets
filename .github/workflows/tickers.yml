@@ -19,10 +19,6 @@ jobs:
         fetch-depth: '0'
     - name: 'install uv'
       run: curl -LsSf https://astral.sh/uv/install.sh | sh
-    # - name : 'install hf'
-    #   run: curl -LsSf https://hf.co/cli/install.sh | bash
-    # - name: 'login to hf'
-    #   run: hf auth login --token ${{ secrets.HF_TOKEN }}
     - name: 'setup python env'
       run: |
         uv venv .venv --python 3.11
@@ -36,19 +32,3 @@ jobs:
           --classparams "{\"configuration\": {\"source\": \"nasdaq100\", \"dataset\": \"${{ env.HF_DS_TICKERS }}\"}}"
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
-    # - name: 'create plots'
-    #   run: | 
-    #     .venv/bin/run --module tgedr_datasets.utils.plots \
-    #       --callable do_plots \
-    #       --params "{\"base_data_url\": \"./tmp\", \"dataset_name\": \"tickers\", \"base_plots_url\": \"./assets\"}" | tee output.log
-    # - name: 'commit and push plots'
-    #   run: |
-    #       git config --global user.name "github-actions[bot]"
-    #       git config --global user.email "github-actions[bot]@users.noreply.github.com"
-    #       git add assets/tickers_distribution.png assets/tickers_per_time.png
-    #       if git diff --staged --quiet; then
-    #         echo "No changes to commit"
-    #       else
-    #         git commit . -m "auto: update output data"
-    #         git push
-    #       fi

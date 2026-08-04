@@ -44,7 +44,7 @@ class TickerFetcher:
     def __init__(self) -> None:
         """Initialize the Tickers fetcher."""
         self._sp500_url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
-        self._nasdaq100_url = "https://en.wikipedia.org/wiki/NASDAQ-100"
+        self._nasdaq100_url = "https://en.wikipedia.org/wiki/List_of_NASDAQ-100_companies"
         self._dowjones_url = "https://en.wikipedia.org/wiki/Dow_Jones_Industrial_Average"
         self._russell1000_url = "https://en.wikipedia.org/wiki/Russell_1000_Index"
         self._headers = {
