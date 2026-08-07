@@ -1,5 +1,7 @@
 # datasets
 
+> Placeholder commit for the agent session worktree (managed via GitHub mobile).
+
 [![cicd](https://github.com/jtviegas/datasets/actions/workflows/cicd.yml/badge.svg)](https://github.com/jtviegas/datasets/actions/workflows/cicd.yml)
 ![Coverage](./coverage.svg)
 [![PyPI](https://img.shields.io/pypi/v/tgedr-datasets)](https://pypi.org/project/tgedr-datasets/)
