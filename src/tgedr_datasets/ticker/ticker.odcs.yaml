@@ -34,3 +34,24 @@ schema:
         physicalType: BIGINT
         required: true
         description: Unix epoch timestamp in seconds (UTC) of the day the ticker was added.
+
+customProperties:
+  - property: expectations
+    value:
+      expectation_suite_name: tickers_suite
+      expectations:
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: ticker
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: date
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: ticker
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: date
+        - expectation_type: expect_column_values_to_be_unique
+          kwargs:
+            column: ticker

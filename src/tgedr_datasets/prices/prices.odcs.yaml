@@ -79,3 +79,86 @@ schema:
         physicalType: BIGINT
         required: true
         description: Unix epoch timestamp in seconds (UTC) when the row was processed.
+
+customProperties:
+  - property: expectations
+    value:
+      expectation_suite_name: prices_suite
+      expectations:
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: id
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: ticker
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: timestamp
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: open
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: high
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: low
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: close
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: volume
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: processing_time
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: id
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: ticker
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: timestamp
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: open
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: high
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: low
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: close
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: volume
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: processing_time
+        - expectation_type: expect_column_values_to_be_unique
+          kwargs:
+            column: id
+        - expectation_type: expect_column_values_to_be_between
+          kwargs:
+            column: open
+            min_value: 0
+        - expectation_type: expect_column_values_to_be_between
+          kwargs:
+            column: high
+            min_value: 0
+        - expectation_type: expect_column_values_to_be_between
+          kwargs:
+            column: low
+            min_value: 0
+        - expectation_type: expect_column_values_to_be_between
+          kwargs:
+            column: close
+            min_value: 0
+        - expectation_type: expect_column_values_to_be_between
+          kwargs:
+            column: volume
+            min_value: 0

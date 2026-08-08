@@ -6,15 +6,19 @@ a Parquet data store.
 """
 
 import logging
+from pathlib import Path
 from typing import Any
 from datetime import datetime, UTC
 import pandas as pd
 from tgedr_dataops_abs.etl import Etl
 from tgedr_dataops.store.hf_dataset import DataFrameSplits, HuggingFaceDatasetStore
 
+from tgedr_datasets.quality.contract_validation import validate_df_against_contract
 from tgedr_datasets.ticker.fetcher import TickerFetcher
 
 logger = logging.getLogger(__name__)
+
+_CONTRACT_PATH = Path(__file__).parent / "ticker.odcs.yaml"
 
 
 class TickerEtl(Etl):
@@ -58,6 +62,20 @@ class TickerEtl(Etl):
         self._result["date"] = epoch
 
         logger.info("[transform|out]")
+
+    def validate_transform(self) -> None:
+        """Validate the transformed ticker data against its data contract.
+
+        Raises
+        ------
+        ValidationError
+            If the transformed data does not meet the contract expectations.
+        """
+        logger.info("[validate_transform|in]")
+
+        validate_df_against_contract(self._result, _CONTRACT_PATH)
+
+        logger.info("[validate_transform|out]")
 
     @Etl.inject_configuration
     def load(self, dataset: str) -> str:

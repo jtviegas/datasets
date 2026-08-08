@@ -9,6 +9,7 @@ dependencies = [
     "pandas~=2.3.0",
     "tgedr-dataops==1.1.1",
     "pyarrow~=23.0.0",
+    "pyyaml>=6.0",
     "lxml>=6.0.2",
     "html5lib>=1.1",
     "bs4>=0.0.2",

@@ -6,6 +6,7 @@ a Parquet data store.
 """
 
 import logging
+from pathlib import Path
 from typing import Any
 from datetime import datetime, UTC
 import pandas as pd
@@ -13,8 +14,11 @@ from tgedr_dataops_abs.etl import Etl
 from tgedr_datasets.article.article import Article  # noqa: TC001
 from tgedr_datasets.article.articles_aggregator import ArticlesAggregator
 from tgedr_dataops.store.hf_dataset import DataFrameSplits, HuggingFaceDatasetStore
+from tgedr_datasets.quality.contract_validation import validate_df_against_contract
 
 logger = logging.getLogger(__name__)
+
+_CONTRACT_PATH = Path(__file__).parent / "articles.odcs.yaml"
 
 
 class ArticlesEtl(Etl):
@@ -83,6 +87,20 @@ class ArticlesEtl(Etl):
         self._new_data = self._new_data.sort_values(by="id")
 
         logger.info("[transform|out] transformed %d articles", self._new_data.shape[0])
+
+    def validate_transform(self) -> None:
+        """Validate the transformed articles data against its data contract.
+
+        Raises
+        ------
+        ValidationError
+            If the transformed data does not meet the contract expectations.
+        """
+        logger.info("[validate_transform|in]")
+
+        validate_df_against_contract(self._new_data, _CONTRACT_PATH)
+
+        logger.info("[validate_transform|out]")
 
     @Etl.inject_configuration
     def load(self, target_dataset: str) -> str:

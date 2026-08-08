@@ -64,3 +64,60 @@ schema:
         physicalType: BIGINT
         required: true
         description: Unix epoch timestamp in seconds (UTC) when the row was processed.
+
+customProperties:
+  - property: expectations
+    value:
+      expectation_suite_name: articles_suite
+      expectations:
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: id
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: query
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: timestamp
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: title
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: description
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: url
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: source
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: processing_time
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: id
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: query
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: timestamp
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: title
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: description
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: url
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: source
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: processing_time
+        - expectation_type: expect_column_values_to_be_unique
+          kwargs:
+            column: id
