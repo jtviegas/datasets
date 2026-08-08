@@ -156,14 +156,89 @@ def test_transform_empty_data(
     etl = ArticlesEtl()
     etl._data = []  # No articles
 
-    with pytest.raises(KeyError, match="id"):
-        etl.transform()
+    etl.transform()
+
+    assert etl._metrics.get("row_count") == 0
+    assert etl._metrics.get("duplicate_id_count") == 0
+    assert etl._metrics.get("empty_title_count") == 0
+    assert etl._metrics.get("empty_description_count") == 0
+
+
+@patch("tgedr_datasets.article.etl.ArticlesAggregator")
+def test_transform_collects_metrics(
+    mock_aggregator_class: Mock,
+    sample_articles: list[Article],
+) -> None:
+    """Test transform collects data quality metrics."""
+    mock_aggregator_class.return_value = Mock()
+
+    etl = ArticlesEtl()
+    etl._data = sample_articles
+
+    etl.transform()
+
+    assert etl._metrics.get("row_count") == 2
+    assert etl._metrics.get("duplicate_id_count") == 0
+    assert etl._metrics.get("empty_title_count") == 0
+    assert etl._metrics.get("empty_description_count") == 0
+
+
+@patch("tgedr_datasets.article.etl.ArticlesAggregator")
+def test_transform_metrics_with_empty_fields(
+    mock_aggregator_class: Mock,
+) -> None:
+    """Test transform metrics with empty title and description."""
+    mock_aggregator_class.return_value = Mock()
+
+    articles = [
+        Article(title="", description="Some desc", url="https://example.com/1", timestamp=1702000000, source="S", query="AAPL"),
+        Article(title="Title", description="", url="https://example.com/2", timestamp=1702000000, source="S", query="GOOGL"),
+        Article(title="  ", description="  ", url="https://example.com/3", timestamp=1702000000, source="S", query="MSFT"),
+    ]
+    etl = ArticlesEtl()
+    etl._data = articles
+
+    etl.transform()
+
+    assert etl._metrics.get("row_count") == 3
+    assert etl._metrics.get("empty_title_count") == 2
+    assert etl._metrics.get("empty_description_count") == 2
+
+
+def test_load_saves_metrics(tmp_path) -> None:
+    """Test load method saves metrics to CSV."""
+    mock_store = Mock()
+
+    etl = ArticlesEtl(configuration={"target_dataset": "test_target", "metrics_dir": str(tmp_path)})
+    etl._store = mock_store
+
+    data = pd.DataFrame({
+        "id": [1, 2],
+        "query": ["AAPL", "GOOGL"],
+        "processing_time": [1712345600, 1712345600],
+    })
+    etl._new_data = data
+    etl._metrics.set("row_count", 2)
+
+    etl.load()
+
+    metrics_file = tmp_path / "articles.csv"
+    assert metrics_file.exists()
+
+    import csv
+    with metrics_file.open() as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+
+    assert len(rows) == 1
+    assert rows[0]["row_count"] == "2"
+
 
 def test_load_calls_store_update() -> None:
     """Test load method calls store.update with a single DataFrameSplits train split."""
     mock_store = Mock()
 
-    etl = ArticlesEtl(configuration={"target_dataset": "test_target_dataset"})
+    etl = ArticlesEtl(configuration={"target_dataset": "test_target_dataset", "metrics_dir": "/tmp/test_metrics"})
     etl._store = mock_store  # Override the store
 
     # Set up some test data

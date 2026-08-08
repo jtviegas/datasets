@@ -26,11 +26,23 @@ jobs:
     - name: 'install datasets library'
       run: uv pip install --python .venv/bin/python tgedr-datasets
     - name: 'get new prices'
-      run: | 
+      run: |
         .venv/bin/run --module tgedr_datasets.prices.etl \
           --classname PricesEtl \
           --callable run \
           --classparams "{\"configuration\": {\"tickers_dataset\": \"${{ env.HF_DS_TICKERS }}\", \"target_dataset\": \"${{ env.HF_DS_PRICES }}\"}}"
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
+    - name: 'plot metrics'
+      run: |
+        .venv/bin/run --module tgedr_datasets.utils.plots \
+          --callable plot_metrics \
+          --params "{\"metrics_dir\": \"metrics\", \"dataset_name\": \"prices\"}"
+    - name: 'commit and push metrics'
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add metrics/
+        git diff --cached --quiet || git commit -m "auto: update metrics [skip ci]"
+        git push
 

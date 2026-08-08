@@ -136,13 +136,60 @@ def test_transform_date_column(ticker_etl: TickerEtl, sample_tickers: list[str])
 def test_transform_empty_data(ticker_etl: TickerEtl) -> None:
     """Test transform method with empty data list."""
     ticker_etl._data = []
-    
+
     ticker_etl.transform()
-    
+
     assert isinstance(ticker_etl._result, pd.DataFrame)
     assert len(ticker_etl._result) == 0
     assert "ticker" in ticker_etl._result.columns
     assert "date" in ticker_etl._result.columns
+
+
+def test_transform_collects_metrics(ticker_etl: TickerEtl, sample_tickers: list[str]) -> None:
+    """Test transform collects data quality metrics."""
+    ticker_etl._data = sample_tickers
+
+    ticker_etl.transform()
+
+    assert ticker_etl._metrics.get("row_count") == 5
+    assert ticker_etl._metrics.get("duplicate_id_count") == 0
+    assert ticker_etl._metrics.get("ticker_count") == 5
+    assert ticker_etl._metrics.get("empty_ticker_count") == 0
+    assert ticker_etl._metrics.get("duplicate_ticker_count") == 0
+
+
+def test_transform_metrics_with_duplicates(ticker_etl: TickerEtl) -> None:
+    """Test transform metrics with duplicate tickers."""
+    ticker_etl._data = ["AAPL", "MSFT", "AAPL", "GOOGL", "MSFT"]
+
+    ticker_etl.transform()
+
+    assert ticker_etl._metrics.get("row_count") == 5
+    assert ticker_etl._metrics.get("duplicate_id_count") == 2
+    assert ticker_etl._metrics.get("duplicate_ticker_count") == 2
+
+
+def test_transform_metrics_with_empty_tickers(ticker_etl: TickerEtl) -> None:
+    """Test transform metrics with empty ticker strings."""
+    ticker_etl._data = ["AAPL", "", "  ", "MSFT"]
+
+    ticker_etl.transform()
+
+    assert ticker_etl._metrics.get("row_count") == 4
+    assert ticker_etl._metrics.get("empty_ticker_count") == 2
+
+
+def test_transform_metrics_empty_data(ticker_etl: TickerEtl) -> None:
+    """Test transform metrics with empty data list."""
+    ticker_etl._data = []
+
+    ticker_etl.transform()
+
+    assert ticker_etl._metrics.get("row_count") == 0
+    assert ticker_etl._metrics.get("duplicate_id_count") == 0
+    assert ticker_etl._metrics.get("ticker_count") == 0
+    assert ticker_etl._metrics.get("empty_ticker_count") == 0
+    assert ticker_etl._metrics.get("duplicate_ticker_count") == 0
 
 
 @patch("tgedr_datasets.ticker.etl.HuggingFaceDatasetStore")
@@ -152,7 +199,7 @@ def test_load_saves_to_parquet(
     """Test load method saves DataFrameSplits to Hugging Face store."""
 
     target_path = "/tmp/test_tickers"
-    ticker_etl = TickerEtl(configuration={"dataset": target_path})
+    ticker_etl = TickerEtl(configuration={"dataset": target_path, "metrics_dir": "/tmp/test_metrics"})
     mock_store = Mock()
     mock_store_class.return_value = mock_store
     
@@ -178,15 +225,15 @@ def test_load_uses_append_flag(
 ) -> None:
     """Test load method updates the store with append=True."""
 
-    ticker_etl = TickerEtl(configuration={"dataset": "/tmp/test"})
+    ticker_etl = TickerEtl(configuration={"dataset": "/tmp/test", "metrics_dir": "/tmp/test_metrics"})
     mock_store = Mock()
     mock_store_class.return_value = mock_store
-    
+
     ticker_etl._data = sample_tickers
     ticker_etl.transform()
-    
+
     ticker_etl.load()
-    
+
     call_args = mock_store.update.call_args
     assert call_args[1]["append"] is True
     assert call_args[1]["key"] == "/tmp/test"
@@ -201,15 +248,15 @@ def test_full_etl_pipeline(
 ) -> None:
     """Test complete ETL pipeline from extract to load."""
 
-    ticker_etl = TickerEtl(configuration={"source": "sp500", "dataset": "/tmp/tickers"})
+    ticker_etl = TickerEtl(configuration={"source": "sp500", "dataset": "/tmp/tickers", "metrics_dir": "/tmp/test_metrics"})
     # Setup mocks
     mock_fetcher = Mock()
     mock_fetcher.fetch.return_value = sample_tickers
     mock_fetcher_class.return_value = mock_fetcher
-    
+
     mock_store = Mock()
     mock_store_class.return_value = mock_store
-    
+
     # Run full pipeline
     ticker_etl.extract()
     ticker_etl.transform()
@@ -262,7 +309,7 @@ def test_load_logs_target_path(
     """Test load method logs the target path."""
     
     target = "/tmp/test_path"
-    ticker_etl = TickerEtl(configuration={"source": "sp500", "dataset": target})
+    ticker_etl = TickerEtl(configuration={"source": "sp500", "dataset": target, "metrics_dir": "/tmp/test_metrics"})
     caplog.set_level(logging.INFO)
     mock_store = Mock()
     mock_store_class.return_value = mock_store
@@ -301,13 +348,40 @@ def test_load_with_configuration_injection(
     """Test load method with configuration injection."""
     mock_store = Mock()
     mock_store_class.return_value = mock_store
-    
-    config = {"dataset": "/tmp/configured_path"}
+
+    config = {"dataset": "/tmp/configured_path", "metrics_dir": "/tmp/test_metrics"}
     etl = TickerEtl(configuration=config)
     etl._data = sample_tickers
     etl.transform()
-    
+
     # The @inject_configuration decorator should use config
     etl.load()
-    
+
     mock_store.update.assert_called_once()
+
+
+@patch("tgedr_datasets.ticker.etl.HuggingFaceDatasetStore")
+def test_load_saves_metrics(
+    mock_store_class: Mock, sample_tickers: list[str], tmp_path
+) -> None:
+    """Test load method saves metrics to CSV."""
+    mock_store = Mock()
+    mock_store_class.return_value = mock_store
+
+    config = {"dataset": "/tmp/test", "metrics_dir": str(tmp_path)}
+    etl = TickerEtl(configuration=config)
+    etl._data = sample_tickers
+    etl.transform()
+    etl.load()
+
+    metrics_file = tmp_path / "tickers.csv"
+    assert metrics_file.exists()
+
+    import csv
+    with metrics_file.open() as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+
+    assert len(rows) == 1
+    assert rows[0]["row_count"] == "5"
+    assert rows[0]["ticker_count"] == "5"

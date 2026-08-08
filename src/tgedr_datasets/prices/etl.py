@@ -13,6 +13,7 @@ from tgedr_dataops_abs.etl import Etl
 from tgedr_dataops.store.hf_dataset import DataFrameSplits, HuggingFaceDatasetStore
 from tgedr_datasets.prices.price import Price  # noqa: TC001
 from tgedr_datasets.prices.price_fetcher import PriceFetcher
+from tgedr_datasets.utils.metrics import MetricsCollector
 
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,7 @@ class PricesEtl(Etl):
         self._result: pd.DataFrame = pd.DataFrame()
         self._cutoff_date: int = int(datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
         self._store: HuggingFaceDatasetStore = HuggingFaceDatasetStore()
+        self._metrics = MetricsCollector()
 
 
     @Etl.inject_configuration
@@ -68,14 +70,48 @@ class PricesEtl(Etl):
             self._result = pd.concat([self._result, pd.DataFrame([price.to_pd_df_row()])], ignore_index=True)
         self._result["processing_time"] = int(datetime.now(UTC).timestamp())
 
+        self._collect_metrics()
+
         logger.info("[transform|out] transformed %d prices", self._result.shape[0])
 
+    def _collect_metrics(self) -> None:
+        """Collect data quality metrics from the transformed DataFrame."""
+        result = self._result
+        if result.empty:
+            self._metrics.set("row_count", 0)
+            self._metrics.set("duplicate_id_count", 0)
+            self._metrics.set("negative_price_count", 0)
+            self._metrics.set("zero_volume_count", 0)
+            self._metrics.set("ohlc_violations_count", 0)
+            self._metrics.set("duplicate_ticker_timestamp", 0)
+            return
+
+        self._metrics.set("row_count", len(result))
+        self._metrics.set("duplicate_id_count", int(result.duplicated(subset=["id"]).sum()))
+
+        negative = ((result["open"] < 0) | (result["high"] < 0) | (result["low"] < 0) | (result["close"] < 0)).sum()
+        self._metrics.set("negative_price_count", int(negative))
+
+        self._metrics.set("zero_volume_count", int((result["volume"] == 0).sum()))
+
+        ohlc_violations = (
+            (result["high"] < result["low"])
+            | (result["high"] < result["open"])
+            | (result["high"] < result["close"])
+            | (result["low"] > result["open"])
+            | (result["low"] > result["close"])
+        ).sum()
+        self._metrics.set("ohlc_violations_count", int(ohlc_violations))
+
+        self._metrics.set("duplicate_ticker_timestamp", int(result.duplicated(subset=["ticker", "timestamp"]).sum()))
+
     @Etl.inject_configuration
-    def load(self, target_dataset: str) -> str:
+    def load(self, target_dataset: str, metrics_dir: str = "metrics") -> str:
         """Load transformed price data into the target data store.
 
         Args:
             target_dataset: URL or key to the target data store location.
+            metrics_dir: Directory to save metrics CSV files.
 
         Returns:
             The target URL where the data was loaded.
@@ -84,5 +120,7 @@ class PricesEtl(Etl):
 
         dfs: DataFrameSplits = DataFrameSplits(train=self._result)
         HuggingFaceDatasetStore().update(df=dfs, key=target_dataset, append=True)
+
+        self._metrics.save(metrics_dir, "prices")
 
         logger.info(f"[load|out] => {target_dataset}")

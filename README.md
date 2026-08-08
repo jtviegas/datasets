@@ -1,7 +1,5 @@
 # datasets
 
-> Placeholder commit for the agent session worktree (managed via GitHub mobile).
-
 [![cicd](https://github.com/jtviegas/datasets/actions/workflows/cicd.yml/badge.svg)](https://github.com/jtviegas/datasets/actions/workflows/cicd.yml)
 ![Coverage](./coverage.svg)
 [![PyPI](https://img.shields.io/pypi/v/tgedr-datasets)](https://pypi.org/project/tgedr-datasets/)
@@ -18,13 +16,19 @@
 
 [download @ hugging face](https://huggingface.co/datasets/jtviegas/ticker_analysis_articles)
 
+![articles metrics](metrics/articles_metrics.png)
+
 ### prices
 
 [download @ hugging face](https://huggingface.co/datasets/jtviegas/ticker_analysis_prices)
 
+![prices metrics](metrics/prices_metrics.png)
+
 ### tickers
 
 [download @ hugging face](https://huggingface.co/datasets/jtviegas/ticker_analysis_tickers)
+
+![tickers metrics](metrics/tickers_metrics.png)
 
 ## development
 - main requirements:
