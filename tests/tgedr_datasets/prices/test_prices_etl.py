@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 
 import pandas as pd
 import pytest
+from tgedr_dataops_abs.great_expectations_validation import ValidationError
 
 from tests.conftest import assert_frames_are_equal
 from tgedr_dataops.store.hf_dataset import DataFrameSplits
@@ -468,3 +469,21 @@ def test_load_with_configuration_injection(
     etl.load()
 
     mock_store.update.assert_called_once()
+
+
+def test_validate_transform_success(prices_etl: PricesEtl, sample_prices: list[Price]) -> None:
+    """Test validate_transform passes for data meeting the contract."""
+    prices_etl._data = sample_prices
+    prices_etl.transform()
+
+    prices_etl.validate_transform()
+
+
+def test_validate_transform_negative_price_fails(prices_etl: PricesEtl, sample_prices: list[Price]) -> None:
+    """Test validate_transform raises ValidationError for negative prices."""
+    prices_etl._data = sample_prices
+    prices_etl.transform()
+    prices_etl._result.loc[0, "close"] = -1.0
+
+    with pytest.raises(ValidationError, match="does not meet contract"):
+        prices_etl.validate_transform()

@@ -6,6 +6,7 @@ a Parquet data store.
 """
 
 import logging
+from pathlib import Path
 from typing import Any
 from datetime import datetime, UTC
 import pandas as pd
@@ -13,10 +14,13 @@ from tgedr_dataops_abs.etl import Etl
 from tgedr_dataops.store.hf_dataset import DataFrameSplits, HuggingFaceDatasetStore
 from tgedr_datasets.prices.price import Price  # noqa: TC001
 from tgedr_datasets.prices.price_fetcher import PriceFetcher
+from tgedr_datasets.quality.contract_validation import validate_df_against_contract
 from tgedr_datasets.utils.metrics import MetricsCollector
 
 
 logger = logging.getLogger(__name__)
+
+_CONTRACT_PATH = Path(__file__).parent / "prices.odcs.yaml"
 
 
 class PricesEtl(Etl):
@@ -104,6 +108,20 @@ class PricesEtl(Etl):
         self._metrics.set("ohlc_violations_count", int(ohlc_violations))
 
         self._metrics.set("duplicate_ticker_timestamp", int(result.duplicated(subset=["ticker", "timestamp"]).sum()))
+
+    def validate_transform(self) -> None:
+        """Validate the transformed price data against its data contract.
+
+        Raises
+        ------
+        ValidationError
+            If the transformed data does not meet the contract expectations.
+        """
+        logger.info("[validate_transform|in]")
+
+        validate_df_against_contract(self._result, _CONTRACT_PATH)
+
+        logger.info("[validate_transform|out]")
 
     @Etl.inject_configuration
     def load(self, target_dataset: str, metrics_dir: str = "metrics") -> str:

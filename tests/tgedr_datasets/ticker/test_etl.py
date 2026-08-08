@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch, MagicMock
 
 import pandas as pd
 import pytest
+from tgedr_dataops_abs.great_expectations_validation import ValidationError
 
 from tgedr_dataops.store.hf_dataset import DataFrameSplits
 from tgedr_datasets.ticker.etl import TickerEtl
@@ -358,6 +359,23 @@ def test_load_with_configuration_injection(
     etl.load()
 
     mock_store.update.assert_called_once()
+
+
+def test_validate_transform_success(ticker_etl: TickerEtl, sample_tickers: list[str]) -> None:
+    """Test validate_transform passes for data meeting the contract."""
+    ticker_etl._data = sample_tickers
+    ticker_etl.transform()
+
+    ticker_etl.validate_transform()
+
+
+def test_validate_transform_duplicate_ticker_fails(ticker_etl: TickerEtl) -> None:
+    """Test validate_transform raises ValidationError for duplicate tickers."""
+    ticker_etl._data = ["AAPL", "AAPL"]
+    ticker_etl.transform()
+
+    with pytest.raises(ValidationError, match="does not meet contract"):
+        ticker_etl.validate_transform()
 
 
 @patch("tgedr_datasets.ticker.etl.HuggingFaceDatasetStore")
