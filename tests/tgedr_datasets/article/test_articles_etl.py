@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 from pandas.testing import assert_frame_equal
 
 from tgedr_dataops.store.hf_dataset import DataFrameSplits
+from tgedr_dataops_abs.great_expectations_validation import ValidationError
 from tgedr_datasets.article.etl import ArticlesEtl
 from tgedr_datasets.article.article import Article
 
@@ -184,3 +185,35 @@ def test_load_calls_store_update() -> None:
     assert call[1]["append"] is True
     assert isinstance(call[1]["df"], DataFrameSplits)
     assert_frame_equal(call[1]["df"].train, data)
+
+
+@patch("tgedr_datasets.article.etl.ArticlesAggregator")
+def test_validate_transform_success(
+    mock_aggregator_class: Mock,
+    sample_articles: list[Article],
+) -> None:
+    """Test validate_transform passes for data meeting the contract."""
+    mock_aggregator_class.return_value = Mock()
+
+    etl = ArticlesEtl()
+    etl._data = sample_articles
+    etl.transform()
+
+    etl.validate_transform()
+
+
+@patch("tgedr_datasets.article.etl.ArticlesAggregator")
+def test_validate_transform_null_title_fails(
+    mock_aggregator_class: Mock,
+    sample_articles: list[Article],
+) -> None:
+    """Test validate_transform raises ValidationError for null titles."""
+    mock_aggregator_class.return_value = Mock()
+
+    etl = ArticlesEtl()
+    etl._data = sample_articles
+    etl.transform()
+    etl._new_data.loc[0, "title"] = None
+
+    with pytest.raises(ValidationError, match="does not meet contract"):
+        etl.validate_transform()

@@ -1,0 +1,164 @@
+apiVersion: v3.1.0
+kind: DataContract
+id: urn:datacontract:tgedr:prices
+name: prices
+version: 1.0.0
+status: active
+description:
+  purpose: Daily OHLCV stock price data for the tracked tickers.
+  usage: Used for market analysis and downstream financial analytics.
+  limitations: Prices are limited to the tracked ticker universe and daily granularity.
+
+tags:
+  - finance
+  - prices
+
+schema:
+  - name: prices
+    physicalName: prices
+    physicalType: table
+    description: One row per ticker per timestamp with OHLCV price data.
+    properties:
+      - name: id
+        primaryKey: true
+        logicalType: integer
+        physicalType: BIGINT
+        required: true
+        unique: true
+        description: Unique identifier derived from the ticker and timestamp.
+      - name: ticker
+        logicalType: string
+        physicalType: VARCHAR
+        required: true
+        description: Stock ticker symbol (e.g., "AAPL", "GOOGL").
+        examples:
+          - AAPL
+          - GOOGL
+      - name: timestamp
+        logicalType: integer
+        physicalType: BIGINT
+        required: true
+        description: Unix epoch timestamp in seconds (UTC) of the price period.
+      - name: open
+        logicalType: number
+        physicalType: DOUBLE
+        required: true
+        description: Opening price for the period.
+        logicalTypeOptions:
+          minimum: 0
+      - name: high
+        logicalType: number
+        physicalType: DOUBLE
+        required: true
+        description: Highest price during the period.
+        logicalTypeOptions:
+          minimum: 0
+      - name: low
+        logicalType: number
+        physicalType: DOUBLE
+        required: true
+        description: Lowest price during the period.
+        logicalTypeOptions:
+          minimum: 0
+      - name: close
+        logicalType: number
+        physicalType: DOUBLE
+        required: true
+        description: Closing price for the period.
+        logicalTypeOptions:
+          minimum: 0
+      - name: volume
+        logicalType: integer
+        physicalType: BIGINT
+        required: true
+        description: Trading volume during the period.
+        logicalTypeOptions:
+          minimum: 0
+      - name: processing_time
+        logicalType: integer
+        physicalType: BIGINT
+        required: true
+        description: Unix epoch timestamp in seconds (UTC) when the row was processed.
+
+customProperties:
+  - property: expectations
+    value:
+      expectation_suite_name: prices_suite
+      expectations:
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: id
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: ticker
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: timestamp
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: open
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: high
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: low
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: close
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: volume
+        - expectation_type: expect_column_to_exist
+          kwargs:
+            column: processing_time
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: id
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: ticker
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: timestamp
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: open
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: high
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: low
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: close
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: volume
+        - expectation_type: expect_column_values_to_not_be_null
+          kwargs:
+            column: processing_time
+        - expectation_type: expect_column_values_to_be_unique
+          kwargs:
+            column: id
+        - expectation_type: expect_column_values_to_be_between
+          kwargs:
+            column: open
+            min_value: 0
+        - expectation_type: expect_column_values_to_be_between
+          kwargs:
+            column: high
+            min_value: 0
+        - expectation_type: expect_column_values_to_be_between
+          kwargs:
+            column: low
+            min_value: 0
+        - expectation_type: expect_column_values_to_be_between
+          kwargs:
+            column: close
+            min_value: 0
+        - expectation_type: expect_column_values_to_be_between
+          kwargs:
+            column: volume
+            min_value: 0
