@@ -149,3 +149,59 @@ def do_plots(base_data_url: str, dataset_name: str, base_plots_url: str = ".") -
         plot_parent_url=base_plots_url,
     )
     logger.info("[do_plots|out]")
+
+
+def plot_metrics(metrics_dir: str, dataset_name: str, cutoff_days: int | None = None) -> None:
+    """Plot line charts for each metric from a metrics CSV file.
+
+    Reads the CSV file for the given dataset, converts the timestamp column to
+    datetime, and generates one line plot per metric column showing the trend
+    over time.
+
+    Parameters
+    ----------
+    metrics_dir : str
+        Directory containing the metrics CSV files.
+    dataset_name : str
+        Name of the dataset (e.g., "tickers", "prices", "articles").
+    cutoff_days : int | None, optional
+        Number of days to look back. If None, all data is plotted. Default is None.
+
+    """
+    logger.info(f"[plot_metrics|in] ({metrics_dir}, {dataset_name}, {cutoff_days})")
+
+    csv_path = f"{metrics_dir}/{dataset_name}.csv"
+    metrics_df = pd.read_csv(csv_path)
+
+    if metrics_df.empty:
+        logger.warning("[plot_metrics] empty metrics file: %s", csv_path)
+        return
+
+    metrics_df["timestamp"] = pd.to_datetime(metrics_df["timestamp"], unit="s", utc=True)
+
+    if cutoff_days is not None:
+        cutoff_time = pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=cutoff_days)
+        metrics_df = metrics_df[metrics_df["timestamp"] >= cutoff_time]
+
+    metric_cols = [col for col in metrics_df.columns if col != "timestamp"]
+
+    if not metric_cols:
+        logger.warning("[plot_metrics] no metric columns found in %s", csv_path)
+        return
+
+    plt.clf()
+    _, axes = plt.subplots(len(metric_cols), 1, figsize=(12, 4 * len(metric_cols)), sharex=True)
+    if len(metric_cols) == 1:
+        axes = [axes]
+
+    for ax, col in zip(axes, metric_cols, strict=True):
+        ax.plot(metrics_df["timestamp"], metrics_df[col], marker="o", linewidth=1.5, markersize=4)
+        ax.set_ylabel(col)
+        ax.set_title(f"{dataset_name} — {col}")
+        ax.grid(visible=True, alpha=0.3)
+
+    axes[-1].xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+    plt.gcf().autofmt_xdate()
+    plt.tight_layout()
+    plt.savefig(f"{metrics_dir}/{dataset_name}_metrics.png", dpi=300, bbox_inches="tight")
+    logger.info(f"[plot_metrics|out] => {metrics_dir}/{dataset_name}_metrics.png")

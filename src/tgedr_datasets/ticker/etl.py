@@ -15,6 +15,7 @@ from tgedr_dataops.store.hf_dataset import DataFrameSplits, HuggingFaceDatasetSt
 
 from tgedr_datasets.quality.contract_validation import validate_df_against_contract
 from tgedr_datasets.ticker.fetcher import TickerFetcher
+from tgedr_datasets.utils.metrics import MetricsCollector
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ class TickerEtl(Etl):
         super().__init__(configuration)
         self._data: list[str] = []
         self._result: pd.DataFrame = None
+        self._metrics = MetricsCollector()
 
     @Etl.inject_configuration
     def extract(self, source: str) -> None:
@@ -61,7 +63,19 @@ class TickerEtl(Etl):
         self._result = pd.DataFrame(self._data, columns=["ticker"])
         self._result["date"] = epoch
 
+        self._collect_metrics()
+
         logger.info("[transform|out]")
+
+    def _collect_metrics(self) -> None:
+        """Collect data quality metrics from the transformed DataFrame."""
+        result = self._result
+        duplicated = int(result.duplicated(subset=["ticker"]).sum()) if not result.empty else 0
+        self._metrics.set("row_count", len(result))
+        self._metrics.set("duplicate_id_count", duplicated)
+        self._metrics.set("ticker_count", len(result))
+        self._metrics.set("empty_ticker_count", int(result["ticker"].isna().sum() + (result["ticker"].str.strip() == "").sum()) if not result.empty else 0)
+        self._metrics.set("duplicate_ticker_count", duplicated)
 
     def validate_transform(self) -> None:
         """Validate the transformed ticker data against its data contract.
@@ -78,11 +92,12 @@ class TickerEtl(Etl):
         logger.info("[validate_transform|out]")
 
     @Etl.inject_configuration
-    def load(self, dataset: str) -> str:
+    def load(self, dataset: str, metrics_dir: str = "metrics") -> str:
         """Load transformed ticker data into a Parquet store.
 
         Args:
             dataset: Name of the dataset where the Parquet data will be saved.
+            metrics_dir: Directory to save metrics CSV files.
 
         Returns:
             The target path where data was saved.
@@ -92,6 +107,8 @@ class TickerEtl(Etl):
 
         dfs: DataFrameSplits = DataFrameSplits(train=self._result)
         HuggingFaceDatasetStore().update(df=dfs, key=dataset, append=True)
+
+        self._metrics.save(metrics_dir, "tickers")
 
         logger.info(f"[load|out] => {dataset}")
 

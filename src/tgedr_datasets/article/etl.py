@@ -13,6 +13,7 @@ import pandas as pd
 from tgedr_dataops_abs.etl import Etl
 from tgedr_datasets.article.article import Article  # noqa: TC001
 from tgedr_datasets.article.articles_aggregator import ArticlesAggregator
+from tgedr_datasets.utils.metrics import MetricsCollector
 from tgedr_dataops.store.hf_dataset import DataFrameSplits, HuggingFaceDatasetStore
 from tgedr_datasets.quality.contract_validation import validate_df_against_contract
 
@@ -44,6 +45,7 @@ class ArticlesEtl(Etl):
         self._new_data: pd.DataFrame = pd.DataFrame()
         self._new_train: pd.DataFrame = None
         self._new_validation: pd.DataFrame = None
+        self._metrics = MetricsCollector()
 
 
     @Etl.inject_configuration
@@ -84,9 +86,29 @@ class ArticlesEtl(Etl):
         for article in self._data:
             self._new_data = pd.concat([self._new_data, pd.DataFrame([article.to_pd_df_row()])], ignore_index=True)
         self._new_data["processing_time"] = self._processing_time
-        self._new_data = self._new_data.sort_values(by="id")
+        if not self._new_data.empty and "id" in self._new_data.columns:
+            self._new_data = self._new_data.sort_values(by="id")
+
+        self._collect_metrics()
 
         logger.info("[transform|out] transformed %d articles", self._new_data.shape[0])
+
+    def _collect_metrics(self) -> None:
+        """Collect data quality metrics from the transformed DataFrame."""
+        data = self._new_data
+        if data.empty or "id" not in data.columns:
+            self._metrics.set("row_count", 0)
+            self._metrics.set("duplicate_id_count", 0)
+            self._metrics.set("empty_title_count", 0)
+            self._metrics.set("empty_description_count", 0)
+            return
+
+        self._metrics.set("row_count", len(data))
+        self._metrics.set("duplicate_id_count", int(data.duplicated(subset=["id"]).sum()))
+        self._metrics.set("empty_title_count", int(data["title"].isna().sum() + (data["title"].str.strip() == "").sum()))
+        self._metrics.set(
+            "empty_description_count", int(data["description"].isna().sum() + (data["description"].str.strip() == "").sum())
+        )
 
     def validate_transform(self) -> None:
         """Validate the transformed articles data against its data contract.
@@ -103,11 +125,12 @@ class ArticlesEtl(Etl):
         logger.info("[validate_transform|out]")
 
     @Etl.inject_configuration
-    def load(self, target_dataset: str) -> str:
+    def load(self, target_dataset: str, metrics_dir: str = "metrics") -> str:
         """Load the transformed articles into the Parquet store.
 
         Args:
             target_dataset (str): The key or name of the target dataset where to store the data.
+            metrics_dir: Directory to save metrics CSV files.
 
         Returns:
             str: The target dataset where the data was stored.
@@ -118,5 +141,7 @@ class ArticlesEtl(Etl):
 
         dfs: DataFrameSplits = DataFrameSplits(train=self._new_data)
         self._store.update(df=dfs, key=target_dataset, append=True)
+
+        self._metrics.save(metrics_dir, "articles")
 
         logger.info(f"[load|out] => {target_dataset}")

@@ -255,12 +255,92 @@ def test_transform_logs_info(prices_etl: PricesEtl, sample_prices: list[Price], 
     """Test transform method logs information."""
     caplog.set_level(logging.INFO)
     prices_etl._data = sample_prices
-    
+
     prices_etl.transform()
-    
+
     assert "[transform|in]" in caplog.text
     assert "[transform|out]" in caplog.text
     assert "transformed" in caplog.text
+
+
+def test_transform_collects_metrics(prices_etl: PricesEtl, sample_prices: list[Price]) -> None:
+    """Test transform collects data quality metrics."""
+    prices_etl._data = sample_prices
+
+    prices_etl.transform()
+
+    assert prices_etl._metrics.get("row_count") == 4
+    assert prices_etl._metrics.get("duplicate_id_count") == 0
+    assert prices_etl._metrics.get("negative_price_count") == 0
+    assert prices_etl._metrics.get("zero_volume_count") == 0
+    assert prices_etl._metrics.get("ohlc_violations_count") == 0
+    assert prices_etl._metrics.get("duplicate_ticker_timestamp") == 0
+
+
+def test_transform_metrics_with_zero_volume(prices_etl: PricesEtl) -> None:
+    """Test transform metrics with zero volume rows."""
+    prices = [
+        Price(ticker="AAPL", timestamp=1738800000, open=150.0, high=155.0, low=149.0, close=154.0, volume=0),
+        Price(ticker="MSFT", timestamp=1738800000, open=300.0, high=305.0, low=299.0, close=304.0, volume=800000),
+    ]
+    prices_etl._data = prices
+
+    prices_etl.transform()
+
+    assert prices_etl._metrics.get("zero_volume_count") == 1
+
+
+def test_transform_metrics_with_duplicate_ticker_timestamp(prices_etl: PricesEtl) -> None:
+    """Test transform metrics detects duplicate ticker+timestamp."""
+    prices = [
+        Price(ticker="AAPL", timestamp=1738800000, open=150.0, high=155.0, low=149.0, close=154.0, volume=1000000),
+        Price(ticker="AAPL", timestamp=1738800000, open=151.0, high=156.0, low=150.0, close=155.0, volume=1100000),
+    ]
+    prices_etl._data = prices
+
+    prices_etl.transform()
+
+    assert prices_etl._metrics.get("duplicate_ticker_timestamp") == 1
+
+
+def test_transform_metrics_empty_data(prices_etl: PricesEtl) -> None:
+    """Test transform metrics with empty data."""
+    prices_etl._data = []
+
+    prices_etl.transform()
+
+    assert prices_etl._metrics.get("row_count") == 0
+    assert prices_etl._metrics.get("duplicate_id_count") == 0
+    assert prices_etl._metrics.get("negative_price_count") == 0
+    assert prices_etl._metrics.get("zero_volume_count") == 0
+    assert prices_etl._metrics.get("ohlc_violations_count") == 0
+    assert prices_etl._metrics.get("duplicate_ticker_timestamp") == 0
+
+
+@patch("tgedr_datasets.prices.etl.HuggingFaceDatasetStore")
+def test_load_saves_metrics(
+    mock_store_class: Mock, sample_prices: list[Price], tmp_path
+) -> None:
+    """Test load method saves metrics to CSV."""
+    mock_store = Mock()
+    mock_store_class.return_value = mock_store
+
+    config = {"target_dataset": "test/prices", "metrics_dir": str(tmp_path)}
+    etl = PricesEtl(configuration=config)
+    etl._data = sample_prices
+    etl.transform()
+    etl.load()
+
+    metrics_file = tmp_path / "prices.csv"
+    assert metrics_file.exists()
+
+    import csv
+    with metrics_file.open() as f:
+        reader = csv.DictReader(f)
+        rows = list(reader)
+
+    assert len(rows) == 1
+    assert rows[0]["row_count"] == "4"
 
 
 @patch("tgedr_datasets.prices.etl.HuggingFaceDatasetStore")
@@ -269,17 +349,17 @@ def test_load_calls_store_update(
 ) -> None:
     """Test load method calls store update with correct parameters."""
     target = "test/prices"
-    config = {"target_dataset": target}
-    
+    config = {"target_dataset": target, "metrics_dir": "/tmp/test_metrics"}
+
     mock_store = Mock()
     mock_store_class.return_value = mock_store
     prices_etl = PricesEtl(configuration=config)
-  
+
     prices_etl._data = sample_prices
     prices_etl.transform()
-    
+
     prices_etl.load()
-    
+
     mock_store.update.assert_called_once()
     call_kwargs = mock_store.update.call_args[1]
     assert isinstance(call_kwargs["df"], DataFrameSplits)
@@ -294,17 +374,17 @@ def test_load_logs_info(
     """Test load method logs information."""
     caplog.set_level(logging.INFO)
     target = "test/prices"
-    config = {"target_dataset": target}
+    config = {"target_dataset": target, "metrics_dir": "/tmp/test_metrics"}
     prices_etl = PricesEtl(configuration=config)
-    
+
     mock_store = Mock()
     mock_store_class.return_value = mock_store
-    
+
     prices_etl._data = sample_prices
     prices_etl.transform()
-    
+
     prices_etl.load()
-    
+
     assert f"[load|in] ({target})" in caplog.text
     assert f"[load|out] => {target}" in caplog.text
 
@@ -318,7 +398,7 @@ def test_full_etl_pipeline(
     sample_prices: list[Price],
 ) -> None:
     """Test complete ETL pipeline from extract to load."""
-    config = {"tickers_dataset": "test/tickers", "target_dataset": "test/prices"}
+    config = {"tickers_dataset": "test/tickers", "target_dataset": "test/prices", "metrics_dir": "/tmp/test_metrics"}
     prices_etl = PricesEtl(configuration=config)
     
     # Mock store for extract
@@ -378,16 +458,16 @@ def test_load_with_configuration_injection(
     mock_store_class: Mock, sample_prices: list[Price]
 ) -> None:
     """Test load method with configuration injection."""
-    config = {"target_dataset": "test/configured_prices"}
+    config = {"target_dataset": "test/configured_prices", "metrics_dir": "/tmp/test_metrics"}
     etl = PricesEtl(configuration=config)
-    
+
     mock_store = Mock()
     mock_store_class.return_value = mock_store
     etl._data = sample_prices
     etl.transform()
     # The @inject_configuration decorator should use config
     etl.load()
-    
+
     mock_store.update.assert_called_once()
 
 
