@@ -1,0 +1,36 @@
+apiVersion: v3.1.0
+kind: DataContract
+id: urn:datacontract:tgedr:tickers
+name: tickers
+version: 1.0.0
+status: active
+description:
+  purpose: List of stock ticker symbols tracked by the analysis pipelines.
+  usage: Used as the source of truth for which tickers to fetch prices and news articles for.
+  limitations: Ticker universe is limited to the configured market indices.
+
+tags:
+  - finance
+  - tickers
+
+schema:
+  - name: tickers
+    physicalName: tickers
+    physicalType: table
+    description: One row per stock ticker symbol for a given date.
+    properties:
+      - name: ticker
+        primaryKey: true
+        logicalType: string
+        physicalType: VARCHAR
+        required: true
+        unique: true
+        description: Stock ticker symbol (e.g., "AAPL", "GOOGL").
+        examples:
+          - AAPL
+          - GOOGL
+      - name: date
+        logicalType: integer
+        physicalType: BIGINT
+        required: true
+        description: Unix epoch timestamp in seconds (UTC) of the day the ticker was added.

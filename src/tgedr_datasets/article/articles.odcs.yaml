@@ -1,0 +1,66 @@
+apiVersion: v3.1.0
+kind: DataContract
+id: urn:datacontract:tgedr:articles
+name: articles
+version: 1.0.0
+status: active
+description:
+  purpose: News articles related to the tracked stock tickers.
+  usage: Used for market sentiment and news analysis.
+  limitations: Articles are limited to the tracked ticker universe and available news sources.
+
+tags:
+  - finance
+  - news
+  - articles
+
+schema:
+  - name: articles
+    physicalName: articles
+    physicalType: table
+    description: One row per news article related to a tracked ticker.
+    properties:
+      - name: id
+        primaryKey: true
+        logicalType: integer
+        physicalType: BIGINT
+        required: true
+        unique: true
+        description: Unique identifier derived from the query and timestamp.
+      - name: query
+        logicalType: string
+        physicalType: VARCHAR
+        required: true
+        description: Query string that found the article (e.g., stock ticker).
+        examples:
+          - AAPL
+      - name: timestamp
+        logicalType: integer
+        physicalType: BIGINT
+        required: true
+        description: Unix epoch timestamp in seconds (UTC) of the article.
+      - name: title
+        logicalType: string
+        physicalType: VARCHAR
+        required: true
+        description: Article headline.
+      - name: description
+        logicalType: string
+        physicalType: VARCHAR
+        required: true
+        description: Article description or summary.
+      - name: url
+        logicalType: string
+        physicalType: VARCHAR
+        required: true
+        description: URL to the full article.
+      - name: source
+        logicalType: string
+        physicalType: VARCHAR
+        required: true
+        description: News source name.
+      - name: processing_time
+        logicalType: integer
+        physicalType: BIGINT
+        required: true
+        description: Unix epoch timestamp in seconds (UTC) when the row was processed.
