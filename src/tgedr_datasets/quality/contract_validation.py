@@ -87,6 +87,7 @@ def validate_df_against_contract(df: pd.DataFrame, contract_path: Path | str) ->
     result = PandasValidation().validate(df, expectations)
 
     if not result.get("success"):
+        logger.error(result)
         failed = [r["expectation_config"]["type"] for r in result.get("results", []) if not r.get("success")]
         msg = f"[validate_df_against_contract] data does not meet contract '{contract_path}' expectations: {failed}"
         raise ValidationError(msg)

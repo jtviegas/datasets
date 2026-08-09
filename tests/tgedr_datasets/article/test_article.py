@@ -76,6 +76,17 @@ def test_article_id_different_timestamp(valid_article: Article) -> None:
     )
     assert article2.id != valid_article.id
 
+def test_article_id_different_source(valid_article: Article) -> None:
+    """Test Article.id differs with different source."""
+    article2 = Article(
+        title="Apple Stock Surges",
+        description="AAPL rises on strong quarterly results",
+        url="https://example.com/news/apple-surge",
+        timestamp=valid_article.timestamp,
+        source="Reuters",  # Different source
+        query="AAPL",
+    )
+    assert article2.id != valid_article.id
 
 def test_article_to_pd_df_row(valid_article: Article) -> None:
     """Test converting Article to pandas DataFrame row dictionary."""
