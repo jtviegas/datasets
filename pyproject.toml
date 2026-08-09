@@ -1,6 +1,6 @@
 [project]
 name = "tgedr-datasets"
-version = "2.0.4"
+version = "2.0.5"
 description = "datasets to be consumed elsewhere"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
@@ -39,20 +39,17 @@ dev = [
 ]
 
 [project.scripts]
-run = "tgedr_pycommons.cicd.entrypoint:entrypoint" 
+run = "tgedr_pycommons.cicd.entrypoint:entrypoint"
 
 [build-system]
-requires = ["setuptools>=78.1.0", "wheel>=0.45.1"]
-build-backend = "setuptools.build_meta"
+requires = ["uv-build>=0.6,<1.0"]
+build-backend = "uv_build"
 
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools]
-include-package-data = true
-
-[tool.setuptools.package-data]
-"*" = ["CHANGELOG"]
+[tool.uv.build-backend]
+module-name = "tgedr_datasets"
+source-include = [
+    "src/**/*.odcs.yaml"
+]
 
 [tool.coverage.paths]
 source = ["src/"]
@@ -66,9 +63,7 @@ omit = [
     "*/__pycache__/*",
     "*/migrations/*",
     "*/venv/*",
-    "*/.venv/*",
-    "src/tgedr_datasets/utils/plots.py"
-
+    "*/.venv/*"
 ]
 
 [tool.coverage.report]
@@ -85,8 +80,12 @@ skip_covered = false
 skip_empty = false
 
 [tool.pytest.ini_options]
-# bdd_features_base_dir = "documentation/features"
 pythonpath = "."
+filterwarnings = [
+    "ignore::pytest.PytestWarning",
+    "ignore::coverage.exceptions.CoverageWarning",
+    "ignore::DeprecationWarning",
+]
 
 [tool.ruff]
 exclude = [
