@@ -1,0 +1,2 @@
+timestamp,row_count,duplicate_id_count,negative_price_count,zero_volume_count,ohlc_violations_count,duplicate_ticker_timestamp
+1786287184,300,0,0,0,0,0
