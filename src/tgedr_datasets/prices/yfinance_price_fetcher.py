@@ -80,7 +80,7 @@ class YFinancePriceFetcher(Fetcher):
                 return []
 
             # Convert DataFrame to PriceData objects
-            prices = []
+            prices = set()
             for index, row in df.iterrows():
                 # Convert pandas Timestamp to epoch
                 timestamp = int(index.timestamp())
@@ -94,11 +94,11 @@ class YFinancePriceFetcher(Fetcher):
                     close=float(row["Close"]),
                     volume=int(row["Volume"]),
                 )
-                prices.append(price_data)
+                prices.add(price_data)
 
             logger.info("Found %d price points for %s", len(prices), ticker)
             logger.debug("[get_prices|out] => %d price points", len(prices))
-            return prices  # noqa: TRY300
+            return sorted(prices, key=lambda p: p.timestamp)
 
         except Exception as e:
             msg = f"Error fetching prices from Yahoo Finance: {e}"

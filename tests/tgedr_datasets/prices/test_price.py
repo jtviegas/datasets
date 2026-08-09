@@ -329,6 +329,52 @@ def test_price_inequality(valid_price: Price) -> None:
     )
     assert valid_price != price2
 
+def test_price_hash_equal_for_equal_prices(valid_price: Price) -> None:
+    """Test that equal prices have the same hash."""
+    price2 = Price(
+        ticker="AAPL",
+        timestamp=valid_price.timestamp,
+        open=180.50,
+        high=182.75,
+        low=179.80,
+        close=181.25,
+        volume=50000000,
+    )
+    assert hash(valid_price) == hash(price2)
+
+
+def test_price_hash_differs_for_different_prices(valid_price: Price) -> None:
+    """Test that different prices have different hashes."""
+    price2 = Price(
+        ticker="MSFT",  # Different ticker
+        timestamp=valid_price.timestamp,
+        open=180.50,
+        high=182.75,
+        low=179.80,
+        close=181.25,
+        volume=50000000,
+    )
+    assert hash(valid_price) != hash(price2)
+
+
+def test_price_hashable_in_set(valid_price: Price) -> None:
+    """Test that Price instances can be used in a set (hashable)."""
+    price2 = Price(
+        ticker="AAPL",
+        timestamp=valid_price.timestamp,
+        open=180.50,
+        high=182.75,
+        low=179.80,
+        close=181.25,
+        volume=50000000,
+    )
+    s = {valid_price, price2}
+    assert len(s) == 1  # Equal prices collapse to one element
+
+
+def test_price_equality_with_non_price(valid_price: Price) -> None:
+    """Test Price equality against a non-Price object returns NotImplemented."""
+    assert valid_price.__eq__("not a price") is NotImplemented
 
 def test_price_zero_volume() -> None:
     """Test Price with zero volume is valid."""

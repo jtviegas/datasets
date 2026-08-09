@@ -81,6 +81,38 @@ class Price:
             msg = f"[__post_init] {self.ticker}: low price ({self.low}) must be <= close price ({self.close})"
             logger.info(msg)
 
+    def __eq__(self, other: object) -> bool:
+        """Compare two Price instances for equality.
+
+        Two prices are equal when all their fields (ticker, timestamp, open,
+        high, low, close, volume) match.
+
+        Args:
+            other: The object to compare against.
+
+        Returns:
+            bool: True if the other object is a Price with identical fields.
+        """
+        if not isinstance(other, Price):
+            return NotImplemented
+        return (
+            self.ticker == other.ticker
+            and self.timestamp == other.timestamp
+            and self.open == other.open
+            and self.high == other.high
+            and self.low == other.low
+            and self.close == other.close
+            and self.volume == other.volume
+        )
+
+    def __hash__(self) -> int:
+        """Compute a hash for the Price instance.
+
+        Returns:
+            int: Hash based on the immutable fields of the price.
+        """
+        return hash((self.ticker, self.timestamp, self.open, self.high, self.low, self.close, self.volume))
+
     @property
     def id(self) -> int:
         """Generate a unique identifier from ticker and timestamp.

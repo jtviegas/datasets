@@ -21,7 +21,7 @@ from tgedr_datasets.utils.metrics import MetricsCollector
 logger = logging.getLogger(__name__)
 
 _CONTRACT_PATH = Path(__file__).parent / "prices.odcs.yaml"
-_CATCHUP_BATCH_SIZE = 5
+_CATCHUP_BATCH_SIZE = 3
 
 
 class PricesEtl(Etl):

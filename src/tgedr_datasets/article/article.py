@@ -51,6 +51,36 @@ class Article:
         # Convert first 16 characters of hex to integer (64 bits)
         return int(hash_digest[:16], 16)
 
+    def __eq__(self, other: object) -> bool:
+        """Compare two Article instances for equality.
+
+        Two articles are equal when all their fields (title, description, url,
+        timestamp, source, query) match.
+
+        Args:
+            other: The object to compare against.
+
+        Returns:
+            bool: True if the other object is an Article with identical fields.
+        """
+        if not isinstance(other, Article):
+            return NotImplemented
+        return (
+            self.title == other.title
+            and self.description == other.description
+            and self.url == other.url
+            and self.timestamp == other.timestamp
+            and self.source == other.source
+            and self.query == other.query
+        )
+
+    def __hash__(self) -> int:
+        """Compute a hash for the Article instance.
+
+        Returns:
+            int: Hash based on the immutable fields of the article.
+        """
+        return hash((self.title, self.description, self.url, self.timestamp, self.source, self.query))
 
     def to_pd_df_row(self) -> dict[str, object]:
         """Convert Article instance to a dictionary suitable for pandas DataFrame row.

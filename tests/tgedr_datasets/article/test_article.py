@@ -1,5 +1,6 @@
 """Unit tests for Article class."""
 
+import time
 from datetime import datetime, UTC
 
 import pytest
@@ -229,6 +230,84 @@ def test_article_inequality_title() -> None:
     )
     assert article1 != article2
 
+def test_article_hash_equal_for_equal_articles() -> None:
+    """Test that equal articles have the same hash."""
+    ts = int(time.time())
+    article1 = Article(
+        title="Test",
+        description="Desc",
+        url="https://example.com",
+        timestamp=ts,
+        source="Test",
+        query="AAPL",
+    )
+    article2 = Article(
+        title="Test",
+        description="Desc",
+        url="https://example.com",
+        timestamp=ts,
+        source="Test",
+        query="AAPL",
+    )
+    assert hash(article1) == hash(article2)
+
+
+def test_article_hash_differs_for_different_articles() -> None:
+    """Test that different articles have different hashes."""
+    ts = int(time.time())
+    article1 = Article(
+        title="Title 1",
+        description="Desc",
+        url="https://example.com",
+        timestamp=ts,
+        source="Test",
+        query="AAPL",
+    )
+    article2 = Article(
+        title="Title 2",
+        description="Desc",
+        url="https://example.com",
+        timestamp=ts,
+        source="Test",
+        query="AAPL",
+    )
+    assert hash(article1) != hash(article2)
+
+
+def test_article_hashable_in_set() -> None:
+    """Test that Article instances can be used in a set (hashable)."""
+    ts = int(time.time())
+    article1 = Article(
+        title="Test",
+        description="Desc",
+        url="https://example.com",
+        timestamp=ts,
+        source="Test",
+        query="AAPL",
+    )
+    article2 = Article(
+        title="Test",
+        description="Desc",
+        url="https://example.com",
+        timestamp=ts,
+        source="Test",
+        query="AAPL",
+    )
+    s = {article1, article2}
+    assert len(s) == 1  # Equal articles collapse to one element
+
+
+def test_article_equality_with_non_article() -> None:
+    """Test Article equality against a non-Article object returns NotImplemented."""
+    article = Article(
+        title="Test",
+        description="Desc",
+        url="https://example.com",
+        timestamp=int(time.time()),
+        source="Test",
+        query="AAPL",
+    )
+    assert article.__eq__("not an article") is NotImplemented
 
 def test_article_mutability() -> None:
     """Test Article fields can be modified (not frozen)."""
