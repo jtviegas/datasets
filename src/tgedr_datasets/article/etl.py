@@ -61,12 +61,12 @@ class ArticlesEtl(Etl):
         """
         logger.info(f"[extract|in] ({tickers_dataset}, {base_date})")
 
-        df_tickers = self._store.get(key=tickers_dataset).train
-        # drop duplicates in case we ran tickers twice in the same day (timestamp)
-        df_tickers = df_tickers.drop_duplicates(subset=["id"], keep="first")
-
-        max_date: int = df_tickers["date"].max()
-        tickers = df_tickers[df_tickers["date"] == max_date]["ticker"].tolist()
+        df_all_tickers = self._store.get(key=tickers_dataset).train
+        max_date: int = df_all_tickers["date"].max()
+        df_last_tickers = df_all_tickers[df_all_tickers["date"] == max_date]
+         # drop duplicates in case we ran tickers twice in the same day (timestamp)
+        df_tickers = df_last_tickers.drop_duplicates(subset=["ticker"], keep="first")
+        tickers = df_tickers["ticker"].tolist()
         max_date_formatted = datetime.fromtimestamp(max_date, tz=UTC).strftime("%Y-%m-%d")
         logger.info(f"[extract] tickers max date: {max_date_formatted} len: {len(tickers)}")
 

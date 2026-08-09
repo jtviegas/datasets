@@ -62,14 +62,17 @@ class PricesEtl(Etl):
             dates_to_fetch = self._find_missing_weekdays(target_dataset)
             dates_to_fetch = [self._cutoff_date] if not dates_to_fetch else dates_to_fetch[:_CATCHUP_BATCH_SIZE]
 
-        df_tickers = self._store.get(key=tickers_dataset).train
-        # drop duplicates in case we ran tickers twice in the same day (timestamp)
-        df_tickers = df_tickers.drop_duplicates(subset=["id"], keep="first")
-        max_date: int = df_tickers["date"].max()
-        tickers = df_tickers[df_tickers["date"] == max_date]["ticker"].tolist()
-        max_data_formatted = datetime.fromtimestamp(max_date, tz=UTC).strftime("%Y-%m-%d")
-        logger.info(f"[extract] tickers max date: {max_data_formatted} len: {len(tickers)}")
+        df_all_tickers = self._store.get(key=tickers_dataset).train
+        max_date: int = df_all_tickers["date"].max()
+        df_last_tickers = df_all_tickers[df_all_tickers["date"] == max_date]
+            # drop duplicates in case we ran tickers twice in the same day (timestamp)
+        df_tickers = df_last_tickers.drop_duplicates(subset=["ticker"], keep="first")
+        tickers = df_tickers["ticker"].tolist()
+        max_date_formatted = datetime.fromtimestamp(max_date, tz=UTC).strftime("%Y-%m-%d")
+        logger.info(f"[extract] tickers max date: {max_date_formatted} len: {len(tickers)}")
+
         logger.info(f"Fetching ticker prices for %d date(s): {[datetime.fromtimestamp(d, tz=UTC).strftime('%Y-%m-%d') for d in dates_to_fetch]}", len(dates_to_fetch))
+
         for ticker in tickers:
             for date in dates_to_fetch:
                 self._data.extend(PriceFetcher.get_instance().get_prices(ticker, date))
