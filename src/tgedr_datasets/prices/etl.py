@@ -62,6 +62,8 @@ class PricesEtl(Etl):
             dates_to_fetch = self._find_missing_weekdays(target_dataset)
             dates_to_fetch = [self._cutoff_date] if not dates_to_fetch else dates_to_fetch[:_CATCHUP_BATCH_SIZE]
 
+        logger.info(f"[extract] fetching dates: {dates_to_fetch}")
+
         df_all_tickers = self._store.get(key=tickers_dataset).train
         max_date: int = df_all_tickers["date"].max()
         df_last_tickers = df_all_tickers[df_all_tickers["date"] == max_date]

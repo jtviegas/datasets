@@ -321,6 +321,45 @@ def test_extract_backfills_missing_dates(
 
 
 @patch("tgedr_datasets.article.etl.ArticlesAggregator")
+@patch("tgedr_datasets.article.etl.HuggingFaceDatasetStore")
+def test_extract_limits_catchup_batch_size(
+    mock_store_class: Mock,
+    mock_aggregator_class: Mock,
+    sample_tickers_df: pd.DataFrame,
+    sample_articles: list[Article],
+) -> None:
+    """Test extract limits the number of catchup dates to _CATCHUP_BATCH_SIZE."""
+    config = {"tickers_dataset": "test/tickers", "target_dataset": "test/articles"}
+    etl = ArticlesEtl(configuration=config)
+
+    # Articles dataset has an old date (10 days ago) producing many missing dates
+    old_ts = int(time.time()) - 86400 * 10
+    mock_store = Mock()
+    mock_store.get.side_effect = [
+        DataFrameSplits(train=pd.DataFrame({"timestamp": [old_ts]})),  # articles (many gaps)
+        DataFrameSplits(train=sample_tickers_df),  # tickers
+    ]
+    mock_store_class.return_value = mock_store
+
+    mock_aggregator = Mock()
+    mock_aggregator.get_news.return_value = sample_articles[:1]
+    mock_aggregator_class.return_value = mock_aggregator
+
+    etl._store = mock_store
+
+    etl.extract()
+
+    # Should fetch at most _CATCHUP_BATCH_SIZE dates per ticker
+    from tgedr_datasets.article.etl import ArticlesEtl as AE
+    batch_size = AE._CATCHUP_BATCH_SIZE
+    unique_dates = set()
+    for call in mock_aggregator.get_news.call_args_list:
+        unique_dates.add(call[0][1])  # processing_time is the second arg
+    assert len(unique_dates) == batch_size
+    assert mock_aggregator.get_news.call_count == 3 * batch_size  # 3 tickers * batch size
+
+
+@patch("tgedr_datasets.article.etl.ArticlesAggregator")
 def test_transform_metrics_with_empty_fields(
     mock_aggregator_class: Mock,
 ) -> None:
