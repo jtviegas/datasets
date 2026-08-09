@@ -87,6 +87,10 @@ class ArticlesEtl(Etl):
             self._new_data = pd.concat([self._new_data, pd.DataFrame([article.to_pd_df_row()])], ignore_index=True)
         self._new_data["processing_time"] = self._processing_time
         if not self._new_data.empty:
+            # Deduplicate by id to avoid unique-constraint violations in validation.
+            # The same article can be fetched multiple times (e.g. across tickers or
+            # sources) with identical fields, producing the same id.
+            self._new_data = self._new_data.drop_duplicates(subset=["id"], keep="first")
             self._new_data = self._new_data.sort_values(by="id")
 
         self._collect_metrics()

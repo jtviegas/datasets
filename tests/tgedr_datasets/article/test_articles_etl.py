@@ -1,4 +1,5 @@
 """Unit tests for ArticlesEtl class."""
+import time
 import pandas as pd
 import pytest
 from unittest.mock import Mock, patch
@@ -191,6 +192,31 @@ def test_transform_collects_metrics(
     assert etl._metrics.get("duplicate_id_count") == 0
     assert etl._metrics.get("empty_title_count") == 0
     assert etl._metrics.get("empty_description_count") == 0
+
+
+@patch("tgedr_datasets.article.etl.ArticlesAggregator")
+def test_transform_deduplicates_by_id(
+    mock_aggregator_class: Mock,
+) -> None:
+    """Test transform deduplicates articles with the same id."""
+    mock_aggregator_class.return_value = Mock()
+
+    # Two articles with identical fields (same id) and one unique
+    ts = int(time.time())
+    articles = [
+        Article(title="Apple News", description="Apple announces", url="https://example.com/1", timestamp=ts, source="S", query="AAPL"),
+        Article(title="Apple News", description="Apple announces", url="https://example.com/1", timestamp=ts, source="S", query="AAPL"),
+        Article(title="Google News", description="Google reports", url="https://example.com/2", timestamp=ts, source="S", query="GOOGL"),
+    ]
+    etl = ArticlesEtl()
+    etl._data = articles
+
+    etl.transform()
+
+    # Duplicate id should be removed
+    assert etl._new_data.shape[0] == 2
+    assert etl._new_data["id"].is_unique
+    assert etl._metrics.get("duplicate_id_count") == 0
 
 
 @patch("tgedr_datasets.article.etl.ArticlesAggregator")
