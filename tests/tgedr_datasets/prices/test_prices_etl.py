@@ -10,8 +10,17 @@ from tgedr_dataops_abs.great_expectations_validation import ValidationError
 
 from tests.conftest import assert_frames_are_equal
 from tgedr_dataops.store.hf_dataset import DataFrameSplits
-from tgedr_datasets.prices.etl import PricesEtl
+from tgedr_datasets.prices.etl import PricesEtl, _CONTRACT_PATH
 from tgedr_datasets.prices.price import Price
+
+
+def test_contract_file_is_packaged() -> None:
+    """Test that the ODCS data contract file is present next to the module.
+
+    Guards against packaging regressions where the ``*.odcs.yaml`` file is
+    omitted from the wheel, which would break contract validation at runtime.
+    """
+    assert _CONTRACT_PATH.exists(), f"missing data contract: {_CONTRACT_PATH}"
 
 
 @pytest.fixture
