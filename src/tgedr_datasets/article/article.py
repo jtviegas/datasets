@@ -44,7 +44,7 @@ class Article:
 
         """
         # Create deterministic hash using SHA-256
-        hash_input = f"{self.query}:{self.source}:{self.title[:7]}:{self.description[:7]}:{self.timestamp}".encode()
+        hash_input = f"{self.query}:{self.source}:{self.title[:14]}:{self.description[:21]}:{self.timestamp}".encode()
         hash_digest = hashlib.sha256(hash_input).hexdigest()
         # Convert first 16 characters of hex to integer (64 bits)
         return int(hash_digest[:16], 16)
