@@ -142,7 +142,7 @@ class PricesEtl(Etl):
 
         try:
             prices_df = self._store.get(key=prices_dataset).train
-        except Exception:
+        except Exception:  # noqa: BLE001
             logger.warning("[_find_missing_weekdays] could not read prices dataset %s, defaulting to today", prices_dataset)
             return [today_midnight]
 
