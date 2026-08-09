@@ -21,7 +21,7 @@ ARTICLES_CONTRACT = _PACKAGE_ROOT / "article" / "articles.odcs.yaml"
 @pytest.fixture
 def valid_tickers_df() -> pd.DataFrame:
     """Provide a valid tickers DataFrame."""
-    return pd.DataFrame({"ticker": ["AAPL", "MSFT"], "date": [1701388800, 1701388800]})
+    return pd.DataFrame({"ticker": ["AAPL", "MSFT"], "actual_time": [1701388800, 1701388800]})
 
 
 @pytest.fixture
@@ -31,7 +31,7 @@ def valid_prices_df() -> pd.DataFrame:
         {
             "id": [1, 2],
             "ticker": ["AAPL", "AAPL"],
-            "timestamp": [1701388800, 1701475200],
+            "actual_time": [1701388800, 1701475200],
             "open": [180.5, 181.0],
             "high": [182.75, 183.0],
             "low": [179.8, 180.0],
@@ -49,7 +49,7 @@ def valid_articles_df() -> pd.DataFrame:
         {
             "id": [1, 2],
             "query": ["AAPL", "MSFT"],
-            "timestamp": [1701388800, 1701388801],
+            "actual_time": [1701388800, 1701388801],
             "title": ["Apple surges", "Microsoft news"],
             "description": ["desc1", "desc2"],
             "url": ["https://example.com/1", "https://example.com/2"],

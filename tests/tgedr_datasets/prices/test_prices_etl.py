@@ -61,7 +61,7 @@ def sample_tickers_df() -> pd.DataFrame:
     return pd.DataFrame({
         "id": [1, 2, 3, 4],
         "ticker": ["AAPL", "MSFT", "GOOGL", "AMZN"],
-        "date": [1738800000, 1738800000, 1738800000, 1738800000],
+        "actual_time": [1738800000, 1738800000, 1738800000, 1738800000],
     })
 
 
@@ -102,7 +102,7 @@ def test_extract_with_default_cutoff_date(
     # Mock store: prices first (for _find_missing_weekdays), then tickers
     mock_store = Mock()
     mock_store.get.side_effect = [
-        DataFrameSplits(train=pd.DataFrame({"timestamp": [_midnight_ts(0), _midnight_ts(1)]})),  # prices (no gaps)
+        DataFrameSplits(train=pd.DataFrame({"actual_time": [_midnight_ts(0), _midnight_ts(1)]})),  # prices (no gaps)
         DataFrameSplits(train=sample_tickers_df),  # tickers
     ]
     mock_store_class.return_value = mock_store
@@ -162,6 +162,7 @@ def test_extract_filters_latest_tickers(
     mock_price_fetcher_class: Mock,
     mock_store_class: Mock,
     sample_prices: list[Price],
+    fixed_today: datetime,
 ) -> None:
     """Test extract filters tickers to only use the latest date."""
     config = {"tickers_dataset": "test/tickers", "target_dataset": "test/prices"}
@@ -171,11 +172,14 @@ def test_extract_filters_latest_tickers(
     df_with_multiple_dates = pd.DataFrame({
         "id": [1, 2, 3, 4],
         "ticker": ["AAPL", "MSFT", "AAPL", "GOOGL"],
-        "date": [1738800000, 1738800000, 1738886400, 1738886400],  # Two different dates
+        "actual_time": [1738800000, 1738800000, 1738886400, 1738886400],  # Two different dates
     })
     
     mock_store = Mock()
-    mock_store.get.return_value = DataFrameSplits(train=df_with_multiple_dates)
+    mock_store.get.side_effect = [
+        DataFrameSplits(train=pd.DataFrame({"actual_time": [_midnight_ts(0), _midnight_ts(1)]})),
+        DataFrameSplits(train=df_with_multiple_dates),
+    ]
     
     mock_fetcher = Mock()
     mock_fetcher.get_prices.return_value = sample_prices[:1]
@@ -246,7 +250,7 @@ def test_find_missing_weekdays_no_gaps(mock_store_class: Mock, fixed_today: date
     """Test _find_missing_weekdays returns empty when all weekdays are present."""
     prices_etl = PricesEtl()
     # Today (Wed) and yesterday (Tue) present
-    df = pd.DataFrame({"timestamp": [_midnight_ts(0), _midnight_ts(1)]})
+    df = pd.DataFrame({"actual_time": [_midnight_ts(0), _midnight_ts(1)]})
     mock_store = Mock()
     mock_store.get.return_value = DataFrameSplits(train=df)
     prices_etl._store = mock_store
@@ -261,7 +265,7 @@ def test_find_missing_weekdays_returns_gaps(mock_store_class: Mock, fixed_today:
     """Test _find_missing_weekdays returns missing weekday timestamps."""
     prices_etl = PricesEtl()
     # Dataset has an older date (5 days ago, Friday) but today is missing
-    df = pd.DataFrame({"timestamp": [_midnight_ts(5)]})
+    df = pd.DataFrame({"actual_time": [_midnight_ts(5)]})
     mock_store = Mock()
     mock_store.get.return_value = DataFrameSplits(train=df)
     prices_etl._store = mock_store
@@ -279,7 +283,7 @@ def test_find_missing_weekdays_skips_weekends(mock_store_class: Mock, fixed_toda
     """Test _find_missing_weekdays skips weekend dates."""
     prices_etl = PricesEtl()
     # Start from 10 days ago; only today present
-    df = pd.DataFrame({"timestamp": [_midnight_ts(0)]})
+    df = pd.DataFrame({"actual_time": [_midnight_ts(0)]})
     mock_store = Mock()
     mock_store.get.return_value = DataFrameSplits(train=df)
     prices_etl._store = mock_store
@@ -307,7 +311,7 @@ def test_extract_backfills_missing_weekdays(
     # Store returns prices first (for _find_missing_weekdays), then tickers
     mock_store = Mock()
     mock_store.get.side_effect = [
-        DataFrameSplits(train=pd.DataFrame({"timestamp": [_midnight_ts(5)]})),  # prices (old date, gaps to today)
+        DataFrameSplits(train=pd.DataFrame({"actual_time": [_midnight_ts(5)]})),  # prices (old date, gaps to today)
         DataFrameSplits(train=sample_tickers_df),  # tickers
     ]
     mock_store_class.return_value = mock_store
@@ -343,7 +347,7 @@ def test_extract_limits_catchup_batch_size(
     # Prices dataset has an old date (30 days ago) producing many missing weekdays
     mock_store = Mock()
     mock_store.get.side_effect = [
-        DataFrameSplits(train=pd.DataFrame({"timestamp": [_midnight_ts(30)]})),  # prices (many gaps)
+        DataFrameSplits(train=pd.DataFrame({"actual_time": [_midnight_ts(30)]})),  # prices (many gaps)
         DataFrameSplits(train=sample_tickers_df),  # tickers
     ]
     mock_store_class.return_value = mock_store
@@ -379,7 +383,7 @@ def test_extract_falls_back_to_today_when_no_missing(
     # Prices dataset has all weekdays present (today and yesterday)
     mock_store = Mock()
     mock_store.get.side_effect = [
-        DataFrameSplits(train=pd.DataFrame({"timestamp": [_midnight_ts(0), _midnight_ts(1)]})),  # prices (no gaps)
+        DataFrameSplits(train=pd.DataFrame({"actual_time": [_midnight_ts(0), _midnight_ts(1)]})),  # prices (no gaps)
         DataFrameSplits(train=sample_tickers_df),  # tickers
     ]
     mock_store_class.return_value = mock_store
@@ -466,7 +470,7 @@ def test_transform_produces_expected_dataframe(prices_etl: PricesEtl, sample_pri
         expected_data.append({
             "id": price.id,
             "ticker": price.ticker,
-            "timestamp": price.timestamp,
+            "actual_time": price.timestamp,
             "open": price.open,
             "high": price.high,
             "low": price.low,
@@ -479,7 +483,7 @@ def test_transform_produces_expected_dataframe(prices_etl: PricesEtl, sample_pri
     assert prices_etl._result.shape[0] == len(sample_prices)
     
     assert_frames_are_equal(prices_etl._result.drop(columns=["processing_time"]), 
-                            expected_df, sort_columns=["ticker", "timestamp"])
+                            expected_df, sort_columns=["ticker", "actual_time"])
 
 
 def test_transform_empty_data(prices_etl: PricesEtl) -> None:
@@ -646,7 +650,7 @@ def test_full_etl_pipeline(
     # Mock store for extract (prices first for _find_missing_weekdays, then tickers)
     mock_store = Mock()
     mock_store.get.side_effect = [
-        DataFrameSplits(train=pd.DataFrame({"timestamp": [_midnight_ts(5)]})),  # prices
+        DataFrameSplits(train=pd.DataFrame({"actual_time": [_midnight_ts(5)]})),  # prices
         DataFrameSplits(train=sample_tickers_df),  # tickers
     ]
     mock_store_class.return_value = mock_store

@@ -61,7 +61,7 @@ class TickerEtl(Etl):
         epoch: int = int(datetime(today.year, today.month, today.day, tzinfo=UTC).timestamp())
 
         self._result = pd.DataFrame(self._data, columns=["ticker"])
-        self._result["date"] = epoch
+        self._result["actual_time"] = epoch
 
         self._collect_metrics()
 

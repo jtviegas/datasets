@@ -122,7 +122,7 @@ def test_article_to_pd_df_row(valid_article: Article) -> None:
     # Verify all fields are present
     assert "id" in row
     assert "query" in row
-    assert "timestamp" in row
+    assert "actual_time" in row
     assert "title" in row
     assert "description" in row
     assert "url" in row
@@ -130,7 +130,7 @@ def test_article_to_pd_df_row(valid_article: Article) -> None:
 
     # Verify values
     assert row["query"] == "AAPL"
-    assert row["timestamp"] == 1701388800
+    assert row["actual_time"] == valid_article.timestamp
     assert row["title"] == "Apple Stock Surges"
     assert row["description"] == "AAPL rises on strong quarterly results"
     assert row["url"] == "https://example.com/news/apple-surge"

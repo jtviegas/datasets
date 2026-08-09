@@ -137,7 +137,7 @@ class Price:
 
         Args:
             data: Dictionary with keys matching Price attributes:
-                  'ticker', 'timestamp', 'open', 'high', 'low', 'close', 'volume'.
+                  'ticker', 'actual_time', 'open', 'high', 'low', 'close', 'volume'.
 
         Returns:
             Price: New Price instance populated from the dictionary.
@@ -145,7 +145,7 @@ class Price:
         """
         return Price(
             ticker=data["ticker"],
-            timestamp=data["timestamp"],
+            timestamp=data["actual_time"],
             open=data["open"],
             high=data["high"],
             low=data["low"],
@@ -179,7 +179,7 @@ class Price:
         return {
             "id": self.id,
             "ticker": self.ticker,
-            "timestamp": self.timestamp,
+            "actual_time": self.timestamp,
             "open": self.open,
             "high": self.high,
             "low": self.low,

@@ -65,8 +65,8 @@ class PricesEtl(Etl):
         logger.info(f"[extract] fetching dates: {dates_to_fetch}")
 
         df_all_tickers = self._store.get(key=tickers_dataset).train
-        max_date: int = df_all_tickers["date"].max()
-        df_last_tickers = df_all_tickers[df_all_tickers["date"] == max_date]
+        max_date: int = df_all_tickers["actual_time"].max()
+        df_last_tickers = df_all_tickers[df_all_tickers["actual_time"] == max_date]
             # drop duplicates in case we ran tickers twice in the same day (timestamp)
         df_tickers = df_last_tickers.drop_duplicates(subset=["ticker"], keep="first")
         tickers = df_tickers["ticker"].tolist()
@@ -122,7 +122,7 @@ class PricesEtl(Etl):
         ).sum()
         self._metrics.set("ohlc_violations_count", int(ohlc_violations))
 
-        self._metrics.set("duplicate_ticker_timestamp", int(result.duplicated(subset=["ticker", "timestamp"]).sum()))
+        self._metrics.set("duplicate_ticker_timestamp", int(result.duplicated(subset=["ticker", "actual_time"]).sum()))
 
     def _find_missing_weekdays(self, prices_dataset: str) -> list[int]:
         """Find weekday dates not yet present in the prices dataset.
@@ -149,12 +149,12 @@ class PricesEtl(Etl):
             logger.warning("[_find_missing_weekdays] could not read prices dataset %s, defaulting to today", prices_dataset)
             return [today_midnight]
 
-        if prices_df is None or prices_df.empty or "timestamp" not in prices_df.columns:
+        if prices_df is None or prices_df.empty or "actual_time" not in prices_df.columns:
             logger.info("[_find_missing_weekdays] prices dataset empty, defaulting to today")
             return [today_midnight]
 
-        existing_ts = set(prices_df["timestamp"].astype(int).tolist())
-        first_ts = int(prices_df["timestamp"].min())
+        existing_ts = set(prices_df["actual_time"].astype(int).tolist())
+        first_ts = int(prices_df["actual_time"].min())
         start_dt = datetime.fromtimestamp(first_ts, tz=UTC).replace(hour=0, minute=0, second=0, microsecond=0)
         end_dt = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
 

@@ -100,7 +100,7 @@ def test_extract_with_whitespace(
 
 
 def test_transform_creates_dataframe(ticker_etl: TickerEtl, sample_tickers: list[str]) -> None:
-    """Test transform method creates DataFrame with ticker and date columns."""
+    """Test transform method creates DataFrame with ticker and actual_time columns."""
     ticker_etl._data = sample_tickers
     
     ticker_etl.transform()
@@ -108,7 +108,7 @@ def test_transform_creates_dataframe(ticker_etl: TickerEtl, sample_tickers: list
     assert isinstance(ticker_etl._result, pd.DataFrame)
     assert len(ticker_etl._result) == len(sample_tickers)
     assert "ticker" in ticker_etl._result.columns
-    assert "date" in ticker_etl._result.columns
+    assert "actual_time" in ticker_etl._result.columns
 
 
 def test_transform_ticker_column(ticker_etl: TickerEtl, sample_tickers: list[str]) -> None:
@@ -120,8 +120,8 @@ def test_transform_ticker_column(ticker_etl: TickerEtl, sample_tickers: list[str
     assert ticker_etl._result["ticker"].tolist() == sample_tickers
 
 
-def test_transform_date_column(ticker_etl: TickerEtl, sample_tickers: list[str]) -> None:
-    """Test transform method correctly populates date column with epoch timestamp."""
+def test_transform_actual_time_column(ticker_etl: TickerEtl, sample_tickers: list[str]) -> None:
+    """Test transform method correctly populates actual_time column with epoch timestamp."""
     ticker_etl._data = sample_tickers
 
     before_transform = datetime.now(UTC).date()
@@ -132,14 +132,14 @@ def test_transform_date_column(ticker_etl: TickerEtl, sample_tickers: list[str])
     after_transform = datetime.now(UTC).date()
     after_epoch = int(datetime(after_transform.year, after_transform.month, after_transform.day, tzinfo=UTC).timestamp())
     
-    # Check that date column exists and has integer values
-    assert ticker_etl._result["date"].dtype in [int, "int64"]
+    # Check that actual_time column exists and has integer values
+    assert ticker_etl._result["actual_time"].dtype in [int, "int64"]
     
-    # Check that all rows have the same date
-    assert ticker_etl._result["date"].nunique() == 1
+    # Check that all rows have the same actual_time
+    assert ticker_etl._result["actual_time"].nunique() == 1
     
-    # Check the date equals the day start captured before/after transform.
-    actual_epoch = ticker_etl._result["date"].iloc[0]
+    # Check the actual_time equals the day start captured before/after transform.
+    actual_epoch = ticker_etl._result["actual_time"].iloc[0]
     assert actual_epoch in (before_epoch, after_epoch)
 
 
@@ -152,7 +152,7 @@ def test_transform_empty_data(ticker_etl: TickerEtl) -> None:
     assert isinstance(ticker_etl._result, pd.DataFrame)
     assert len(ticker_etl._result) == 0
     assert "ticker" in ticker_etl._result.columns
-    assert "date" in ticker_etl._result.columns
+    assert "actual_time" in ticker_etl._result.columns
 
 
 def test_transform_collects_metrics(ticker_etl: TickerEtl, sample_tickers: list[str]) -> None:

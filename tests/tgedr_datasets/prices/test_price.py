@@ -76,7 +76,7 @@ def test_price_from_dict(valid_price: Price) -> None:
     """Test creating Price from dictionary."""
     data = {
         "ticker": "AAPL",
-        "timestamp": 1701388800,
+        "actual_time": valid_price.timestamp,
         "open": 180.50,
         "high": 182.75,
         "low": 179.80,
@@ -94,7 +94,7 @@ def test_price_to_pd_df_row(valid_price: Price) -> None:
     # Verify all fields are present
     assert "id" in row
     assert "ticker" in row
-    assert "timestamp" in row
+    assert "actual_time" in row
     assert "open" in row
     assert "high" in row
     assert "low" in row
@@ -103,7 +103,7 @@ def test_price_to_pd_df_row(valid_price: Price) -> None:
 
     # Verify values
     assert row["ticker"] == "AAPL"
-    assert row["timestamp"] == 1701388800
+    assert row["actual_time"] == valid_price.timestamp
     assert row["open"] == 180.50
     assert row["high"] == 182.75
     assert row["low"] == 179.80

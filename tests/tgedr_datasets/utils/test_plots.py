@@ -185,7 +185,7 @@ class TestDoPlots:
             {
                 item_col: ["a", "b", "a"],
                 "processing_time": [now - 10, now - 20, now - 30],
-                "date": [now - 10, now - 20, now - 30],
+                "actual_time": [now - 10, now - 20, now - 30],
             }
         )
         df.to_parquet(tmp_path / f"{dataset_name}.parquet")

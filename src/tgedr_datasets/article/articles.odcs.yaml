@@ -34,7 +34,7 @@ schema:
         description: Query string that found the article (e.g., stock ticker).
         examples:
           - AAPL
-      - name: timestamp
+      - name: actual_time
         logicalType: integer
         physicalType: BIGINT
         required: true
@@ -78,7 +78,7 @@ customProperties:
             column: query
         - expectation_type: expect_column_to_exist
           kwargs:
-            column: timestamp
+            column: actual_time
         - expectation_type: expect_column_to_exist
           kwargs:
             column: title
@@ -102,7 +102,7 @@ customProperties:
             column: query
         - expectation_type: expect_column_values_to_not_be_null
           kwargs:
-            column: timestamp
+            column: actual_time
         - expectation_type: expect_column_values_to_not_be_null
           kwargs:
             column: title

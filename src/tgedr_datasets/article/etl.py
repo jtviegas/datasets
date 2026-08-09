@@ -73,8 +73,8 @@ class ArticlesEtl(Etl):
         logger.info(f"[extract] fetching dates: {dates_to_fetch}")
 
         df_all_tickers = self._store.get(key=tickers_dataset).train
-        max_date: int = df_all_tickers["date"].max()
-        df_last_tickers = df_all_tickers[df_all_tickers["date"] == max_date]
+        max_date: int = df_all_tickers["actual_time"].max()
+        df_last_tickers = df_all_tickers[df_all_tickers["actual_time"] == max_date]
          # drop duplicates in case we ran tickers twice in the same day (timestamp)
         df_tickers = df_last_tickers.drop_duplicates(subset=["ticker"], keep="first")
         tickers = df_tickers["ticker"].tolist()
@@ -155,15 +155,15 @@ class ArticlesEtl(Etl):
             logger.warning("[_find_missing_dates] could not read articles dataset %s, defaulting to today", articles_dataset)
             return [today_midnight]
 
-        if articles_df is None or articles_df.empty or "timestamp" not in articles_df.columns:
+        if articles_df is None or articles_df.empty or "actual_time" not in articles_df.columns:
             logger.info("[_find_missing_dates] articles dataset empty, defaulting to today")
             return [today_midnight]
 
         existing_ts = set()
-        for ts in articles_df["timestamp"].astype(int).tolist():
+        for ts in articles_df["actual_time"].astype(int).tolist():
             dt = datetime.fromtimestamp(ts, tz=UTC).replace(hour=0, minute=0, second=0, microsecond=0)
             existing_ts.add(int(dt.timestamp()))
-        first_ts = int(articles_df["timestamp"].min())
+        first_ts = int(articles_df["actual_time"].min())
         start_dt = datetime.fromtimestamp(first_ts, tz=UTC).replace(hour=0, minute=0, second=0, microsecond=0)
         end_dt = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
 

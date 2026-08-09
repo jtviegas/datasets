@@ -107,7 +107,7 @@ class Article:
         return {
             "id": self.id,
             "query": self.query,
-            "timestamp": self.timestamp,
+            "actual_time": self.timestamp,
             "title": self.title,
             "description": self.description,
             "url": self.url,

@@ -132,7 +132,7 @@ def do_plots(base_data_url: str, dataset_name: str, base_plots_url: str = ".") -
     dataset_spec = {
         "articles": {"item_col": "query", "item_name": "articles", "processing_time_col": "processing_time"},
         "prices": {"item_col": "ticker", "item_name": "prices", "processing_time_col": "processing_time"},
-        "tickers": {"item_col": "ticker", "item_name": "tickers", "processing_time_col": "date"},
+        "tickers": {"item_col": "ticker", "item_name": "tickers", "processing_time_col": "actual_time"},
     }
     spec = dataset_spec.get(dataset_name)
     df = pd.read_parquet(f"{base_data_url}/{dataset_name}.parquet")  # noqa: PD901

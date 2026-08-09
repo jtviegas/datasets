@@ -29,7 +29,7 @@ schema:
         examples:
           - AAPL
           - GOOGL
-      - name: date
+      - name: actual_time
         logicalType: integer
         physicalType: BIGINT
         required: true
@@ -45,13 +45,13 @@ customProperties:
             column: ticker
         - expectation_type: expect_column_to_exist
           kwargs:
-            column: date
+            column: actual_time
         - expectation_type: expect_column_values_to_not_be_null
           kwargs:
             column: ticker
         - expectation_type: expect_column_values_to_not_be_null
           kwargs:
-            column: date
+            column: actual_time
         - expectation_type: expect_column_values_to_be_unique
           kwargs:
             column: ticker

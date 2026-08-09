@@ -27,7 +27,7 @@ def sample_tickers_df() -> pd.DataFrame:
     return pd.DataFrame({
         "id": [1, 2, 3],
         "ticker": ["AAPL", "GOOGL", "MSFT"],
-        "date": [int(time.time()), int(time.time()), int(time.time())]  # Two tickers on latest date
+        "actual_time": [int(time.time()), int(time.time()), int(time.time())]  # Two tickers on latest date
     })
 
 
@@ -81,7 +81,7 @@ def test_extract_with_tickers_and_articles(
     # Setup mocks: articles first (for _find_missing_dates), then tickers
     mock_store = Mock()
     mock_store.get.side_effect = [
-        DataFrameSplits(train=pd.DataFrame({"timestamp": [int(time.time())]})),  # articles (no gaps)
+        DataFrameSplits(train=pd.DataFrame({"actual_time": [int(time.time())]})),  # articles (no gaps)
         DataFrameSplits(train=sample_tickers_df),  # tickers
     ]
     etl._store = mock_store  # Override the store
@@ -152,7 +152,7 @@ def test_transform_creates_dataframe(
     assert etl._new_data.shape[0] == 2
 
     # Verify columns exist
-    expected_columns = ["id", "query", "timestamp", "title", "description", "url", "source", "processing_time"]
+    expected_columns = ["id", "query", "actual_time", "title", "description", "url", "source", "processing_time"]
     for col in expected_columns:
         assert col in etl._new_data.columns
 
@@ -257,7 +257,7 @@ def test_find_missing_dates_no_gaps(mock_store_class: Mock) -> None:
     """Test _find_missing_dates returns empty when all dates are present."""
     etl = ArticlesEtl()
     now = int(time.time())
-    df = pd.DataFrame({"timestamp": [now, now - 86400]})
+    df = pd.DataFrame({"actual_time": [now, now - 86400]})
     mock_store = Mock()
     mock_store.get.return_value = DataFrameSplits(train=df)
     etl._store = mock_store
@@ -273,7 +273,7 @@ def test_find_missing_dates_returns_gaps(mock_store_class: Mock) -> None:
     etl = ArticlesEtl()
     now = int(time.time())
     # Dataset has an older date (3 days ago) but today is present; yesterday is missing
-    df = pd.DataFrame({"timestamp": [now - 86400 * 3, now]})
+    df = pd.DataFrame({"actual_time": [now - 86400 * 3, now]})
     mock_store = Mock()
     mock_store.get.return_value = DataFrameSplits(train=df)
     etl._store = mock_store
@@ -303,7 +303,7 @@ def test_extract_backfills_missing_dates(
     old_ts = int(time.time()) - 86400 * 3  # 3 days ago
     mock_store = Mock()
     mock_store.get.side_effect = [
-        DataFrameSplits(train=pd.DataFrame({"timestamp": [old_ts]})),  # articles (gaps to today)
+        DataFrameSplits(train=pd.DataFrame({"actual_time": [old_ts]})),  # articles (gaps to today)
         DataFrameSplits(train=sample_tickers_df),  # tickers
     ]
     mock_store_class.return_value = mock_store
@@ -336,7 +336,7 @@ def test_extract_limits_catchup_batch_size(
     old_ts = int(time.time()) - 86400 * 10
     mock_store = Mock()
     mock_store.get.side_effect = [
-        DataFrameSplits(train=pd.DataFrame({"timestamp": [old_ts]})),  # articles (many gaps)
+        DataFrameSplits(train=pd.DataFrame({"actual_time": [old_ts]})),  # articles (many gaps)
         DataFrameSplits(train=sample_tickers_df),  # tickers
     ]
     mock_store_class.return_value = mock_store
