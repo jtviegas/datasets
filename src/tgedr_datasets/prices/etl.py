@@ -8,7 +8,7 @@ a Parquet data store.
 import logging
 from pathlib import Path
 from typing import Any
-from datetime import datetime, UTC
+from datetime import datetime, UTC, timedelta
 import pandas as pd
 from tgedr_dataops_abs.etl import Etl
 from tgedr_dataops.store.hf_dataset import DataFrameSplits, HuggingFaceDatasetStore
@@ -41,28 +41,40 @@ class PricesEtl(Etl):
 
 
     @Etl.inject_configuration
-    def extract(self, tickers_dataset: str, price_date: int |None = None) -> None:
+    def extract(self, tickers_dataset: str, target_dataset: str | None = None, price_date: int | None = None) -> None:
         """Extract ticker data and fetch prices for each ticker.
 
         Args:
             tickers_dataset: URL or key to the tickers dataset.
+            target_dataset: Optional URL or key to the prices dataset, used to find
+                missing weekday dates when no explicit price_date is provided. If
+                None, the current date is used.
             price_date: Optional cutoff timestamp for price data. If not provided,
-                       uses the current date at midnight UTC.
+                       missing weekday dates are backfilled from the prices dataset.
         """
-        logger.info(f"[extract|in] ({tickers_dataset}, {price_date})")
+        logger.info(f"[extract|in] ({tickers_dataset}, {target_dataset}, {price_date})")
 
         if price_date is not None:
             cutoff_ts_dt = datetime.fromtimestamp(price_date, tz=UTC)
             self._cutoff_date: int = int(cutoff_ts_dt.replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
+            dates_to_fetch: list[int] = [self._cutoff_date]
+        elif target_dataset is not None:
+            dates_to_fetch = self._find_missing_weekdays(target_dataset)
+            if not dates_to_fetch:
+                dates_to_fetch = [self._cutoff_date]
+            self._cutoff_date = dates_to_fetch[-1]
+        else:
+            dates_to_fetch = [self._cutoff_date]
 
         df_tickers = self._store.get(key=tickers_dataset).train
         max_date: int = df_tickers["date"].max()
         tickers = df_tickers[df_tickers["date"] == max_date]["ticker"].tolist()
         max_data_formatted = datetime.fromtimestamp(max_date, tz=UTC).strftime("%Y-%m-%d")
         logger.info(f"[extract] tickers max date: {max_data_formatted} len: {len(tickers)}")
-        logger.info(f"Fetching ticker prices with cutoff date: {datetime.fromtimestamp(self._cutoff_date, tz=UTC).strftime('%Y-%m-%d')}")
+        logger.info(f"Fetching ticker prices for %d date(s): {[datetime.fromtimestamp(d, tz=UTC).strftime('%Y-%m-%d') for d in dates_to_fetch]}", len(dates_to_fetch))
         for ticker in tickers:
-            self._data.extend(PriceFetcher.get_instance().get_prices(ticker, self._cutoff_date))
+            for date in dates_to_fetch:
+                self._data.extend(PriceFetcher.get_instance().get_prices(ticker, date))
 
         logger.info("[extract|out] extracted %d prices", len(self._data))
 
@@ -108,6 +120,56 @@ class PricesEtl(Etl):
         self._metrics.set("ohlc_violations_count", int(ohlc_violations))
 
         self._metrics.set("duplicate_ticker_timestamp", int(result.duplicated(subset=["ticker", "timestamp"]).sum()))
+
+    def _find_missing_weekdays(self, prices_dataset: str) -> list[int]:
+        """Find weekday dates not yet present in the prices dataset.
+
+        Reads the existing prices dataset and returns the midnight-UTC epoch
+        timestamps of all weekdays (Monday-Friday) from the first date found in
+        the dataset up to today that are missing from the dataset. If the dataset
+        is empty or has no data, the current date is returned so it can be
+        processed.
+
+        Args:
+            prices_dataset: URL or key to the prices dataset.
+
+        Returns:
+            List of midnight-UTC epoch timestamps for missing weekday dates.
+        """
+        logger.info(f"[_find_missing_weekdays|in] ({prices_dataset})")
+
+        today_midnight = int(datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
+
+        try:
+            prices_df = self._store.get(key=prices_dataset).train
+        except Exception:
+            logger.warning("[_find_missing_weekdays] could not read prices dataset %s, defaulting to today", prices_dataset)
+            return [today_midnight]
+
+        if prices_df is None or prices_df.empty or "timestamp" not in prices_df.columns:
+            logger.info("[_find_missing_weekdays] prices dataset empty, defaulting to today")
+            return [today_midnight]
+
+        existing_ts = set(prices_df["timestamp"].astype(int).tolist())
+        first_ts = int(prices_df["timestamp"].min())
+        start_dt = datetime.fromtimestamp(first_ts, tz=UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        end_dt = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+
+        missing: list[int] = []
+        current = start_dt
+        while current <= end_dt:
+            if current.weekday() < 5:  # Monday-Friday
+                ts = int(current.timestamp())
+                if ts not in existing_ts:
+                    missing.append(ts)
+            current += timedelta(days=1)
+
+        if not missing:
+            logger.info("[_find_missing_weekdays] no missing weekdays found")
+            return []
+
+        logger.info("[_find_missing_weekdays|out] => %d missing weekdays", len(missing))
+        return missing
 
     def validate_transform(self) -> None:
         """Validate the transformed price data against its data contract.

@@ -1,7 +1,7 @@
 """Tests for PricesEtl class."""
 
 import logging
-from datetime import datetime, UTC
+from datetime import datetime, UTC, timedelta
 from unittest.mock import Mock, patch
 
 import pandas as pd
@@ -10,8 +10,23 @@ from tgedr_dataops_abs.great_expectations_validation import ValidationError
 
 from tests.conftest import assert_frames_are_equal
 from tgedr_dataops.store.hf_dataset import DataFrameSplits
+import tgedr_datasets.prices.etl as etl_module
 from tgedr_datasets.prices.etl import PricesEtl, _CONTRACT_PATH
 from tgedr_datasets.prices.price import Price
+
+
+@pytest.fixture
+def fixed_today() -> datetime:
+    """Pin datetime.now to a fixed Wednesday for deterministic weekday tests."""
+    fixed = datetime(2026, 8, 5, 12, 0, 0, tzinfo=UTC)  # Wednesday
+
+    class _FakeDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 8, 5, 12, 0, 0, tzinfo=tz or UTC)
+
+    with patch.object(etl_module, "datetime", _FakeDatetime):
+        yield fixed
 
 
 def test_contract_file_is_packaged() -> None:
@@ -77,7 +92,7 @@ def test_extract_with_default_cutoff_date(
     sample_tickers_df: pd.DataFrame,
     sample_prices: list[Price],
 ) -> None:
-    """Test extract method with default cutoff date."""
+    """Test extract method with default cutoff date (no target_dataset)."""
     config = {"tickers_dataset": "test/tickers"}
     prices_etl = PricesEtl(configuration=config)
     
@@ -198,6 +213,181 @@ def test_extract_logs_info(
     assert "[extract|in]" in caplog.text
     assert "[extract|out]" in caplog.text
     assert "extracted" in caplog.text
+
+
+def _midnight_ts(days_ago: int) -> int:
+    """Return the midnight-UTC epoch timestamp for a date N days before 2026-08-05."""
+    base = datetime(2026, 8, 5, 0, 0, 0, tzinfo=UTC)
+    return int((base - timedelta(days=days_ago)).timestamp())
+
+
+@patch("tgedr_datasets.prices.etl.HuggingFaceDatasetStore")
+def test_find_missing_weekdays_empty_dataset(mock_store_class: Mock, fixed_today: datetime) -> None:
+    """Test _find_missing_weekdays returns today when the dataset is empty."""
+    prices_etl = PricesEtl()
+    mock_store = Mock()
+    mock_store.get.return_value = DataFrameSplits(train=pd.DataFrame())
+    prices_etl._store = mock_store
+
+    result = prices_etl._find_missing_weekdays("test/prices")
+
+    assert result == [_midnight_ts(0)]
+
+
+@patch("tgedr_datasets.prices.etl.HuggingFaceDatasetStore")
+def test_find_missing_weekdays_no_gaps(mock_store_class: Mock, fixed_today: datetime) -> None:
+    """Test _find_missing_weekdays returns empty when all weekdays are present."""
+    prices_etl = PricesEtl()
+    # Today (Wed) and yesterday (Tue) present
+    df = pd.DataFrame({"timestamp": [_midnight_ts(0), _midnight_ts(1)]})
+    mock_store = Mock()
+    mock_store.get.return_value = DataFrameSplits(train=df)
+    prices_etl._store = mock_store
+
+    result = prices_etl._find_missing_weekdays("test/prices")
+
+    assert result == []
+
+
+@patch("tgedr_datasets.prices.etl.HuggingFaceDatasetStore")
+def test_find_missing_weekdays_returns_gaps(mock_store_class: Mock, fixed_today: datetime) -> None:
+    """Test _find_missing_weekdays returns missing weekday timestamps."""
+    prices_etl = PricesEtl()
+    # Dataset has an older date (5 days ago, Friday) but today is missing
+    df = pd.DataFrame({"timestamp": [_midnight_ts(5)]})
+    mock_store = Mock()
+    mock_store.get.return_value = DataFrameSplits(train=df)
+    prices_etl._store = mock_store
+
+    result = prices_etl._find_missing_weekdays("test/prices")
+
+    # Yesterday (Tue) should be a missing weekday in the range
+    assert _midnight_ts(1) in result
+    # Today (Wed) should also be missing
+    assert _midnight_ts(0) in result
+
+
+@patch("tgedr_datasets.prices.etl.HuggingFaceDatasetStore")
+def test_find_missing_weekdays_skips_weekends(mock_store_class: Mock, fixed_today: datetime) -> None:
+    """Test _find_missing_weekdays skips weekend dates."""
+    prices_etl = PricesEtl()
+    # Start from 10 days ago; only today present
+    df = pd.DataFrame({"timestamp": [_midnight_ts(0)]})
+    mock_store = Mock()
+    mock_store.get.return_value = DataFrameSplits(train=df)
+    prices_etl._store = mock_store
+
+    result = prices_etl._find_missing_weekdays("test/prices")
+
+    for ts in result:
+        dt = datetime.fromtimestamp(ts, tz=UTC)
+        assert dt.weekday() < 5
+
+
+@patch("tgedr_datasets.prices.etl.HuggingFaceDatasetStore")
+@patch("tgedr_datasets.prices.etl.PriceFetcher")
+def test_extract_backfills_missing_weekdays(
+    mock_price_fetcher_class: Mock,
+    mock_store_class: Mock,
+    sample_tickers_df: pd.DataFrame,
+    sample_prices: list[Price],
+    fixed_today: datetime,
+) -> None:
+    """Test extract backfills missing weekday dates from the prices dataset."""
+    config = {"tickers_dataset": "test/tickers", "target_dataset": "test/prices"}
+    prices_etl = PricesEtl(configuration=config)
+
+    # Store returns prices first (for _find_missing_weekdays), then tickers
+    mock_store = Mock()
+    mock_store.get.side_effect = [
+        DataFrameSplits(train=pd.DataFrame({"timestamp": [_midnight_ts(5)]})),  # prices (old date, gaps to today)
+        DataFrameSplits(train=sample_tickers_df),  # tickers
+    ]
+    mock_store_class.return_value = mock_store
+
+    mock_fetcher = Mock()
+    mock_fetcher.get_prices.return_value = sample_prices[:1]
+    mock_price_fetcher_class.get_instance.return_value = mock_fetcher
+
+    prices_etl._store = mock_store
+
+    prices_etl.extract()
+
+    # Should fetch for each missing weekday (yesterday at minimum)
+    assert mock_fetcher.get_prices.call_count >= 4  # 4 tickers * at least 1 missing date
+    # Verify fetcher was called with a missing date (yesterday)
+    called_dates = [call[0][1] for call in mock_fetcher.get_prices.call_args_list]
+    assert _midnight_ts(1) in called_dates
+
+
+@patch("tgedr_datasets.prices.etl.HuggingFaceDatasetStore")
+@patch("tgedr_datasets.prices.etl.PriceFetcher")
+def test_extract_falls_back_to_today_when_no_missing(
+    mock_price_fetcher_class: Mock,
+    mock_store_class: Mock,
+    sample_tickers_df: pd.DataFrame,
+    sample_prices: list[Price],
+    fixed_today: datetime,
+) -> None:
+    """Test extract falls back to today when no missing weekdays are found."""
+    config = {"tickers_dataset": "test/tickers", "target_dataset": "test/prices"}
+    prices_etl = PricesEtl(configuration=config)
+
+    # Prices dataset has all weekdays present (today and yesterday)
+    mock_store = Mock()
+    mock_store.get.side_effect = [
+        DataFrameSplits(train=pd.DataFrame({"timestamp": [_midnight_ts(0), _midnight_ts(1)]})),  # prices (no gaps)
+        DataFrameSplits(train=sample_tickers_df),  # tickers
+    ]
+    mock_store_class.return_value = mock_store
+
+    mock_fetcher = Mock()
+    mock_fetcher.get_prices.return_value = sample_prices[:1]
+    mock_price_fetcher_class.get_instance.return_value = mock_fetcher
+
+    prices_etl._store = mock_store
+
+    prices_etl.extract()
+
+    # Should fall back to today: 4 tickers * 1 date
+    assert mock_fetcher.get_prices.call_count == 4
+    called_dates = [call[0][1] for call in mock_fetcher.get_prices.call_args_list]
+    assert all(d == _midnight_ts(0) for d in called_dates)
+
+
+@patch("tgedr_datasets.prices.etl.HuggingFaceDatasetStore")
+@patch("tgedr_datasets.prices.etl.PriceFetcher")
+def test_extract_defaults_to_today_when_prices_unreadable(
+    mock_price_fetcher_class: Mock,
+    mock_store_class: Mock,
+    sample_tickers_df: pd.DataFrame,
+    sample_prices: list[Price],
+    fixed_today: datetime,
+) -> None:
+    """Test extract defaults to today when the prices dataset cannot be read."""
+    config = {"tickers_dataset": "test/tickers", "target_dataset": "test/prices"}
+    prices_etl = PricesEtl(configuration=config)
+
+    # Prices read raises, then tickers read succeeds
+    mock_store = Mock()
+    mock_store.get.side_effect = [
+        Exception("boom"),  # prices read fails
+        DataFrameSplits(train=sample_tickers_df),  # tickers
+    ]
+    mock_store_class.return_value = mock_store
+
+    mock_fetcher = Mock()
+    mock_fetcher.get_prices.return_value = sample_prices[:1]
+    mock_price_fetcher_class.get_instance.return_value = mock_fetcher
+
+    prices_etl._store = mock_store
+
+    prices_etl.extract()
+
+    # Should fall back to today: 4 tickers * 1 date
+    assert mock_fetcher.get_prices.call_count == 4
+    called_dates = [call[0][1] for call in mock_fetcher.get_prices.call_args_list]
+    assert all(d == _midnight_ts(0) for d in called_dates)
 
 
 def test_transform_creates_dataframe(prices_etl: PricesEtl, sample_prices: list[Price]) -> None:
@@ -410,9 +600,12 @@ def test_full_etl_pipeline(
     config = {"tickers_dataset": "test/tickers", "target_dataset": "test/prices", "metrics_dir": "/tmp/test_metrics"}
     prices_etl = PricesEtl(configuration=config)
     
-    # Mock store for extract
+    # Mock store for extract (prices first for _find_missing_weekdays, then tickers)
     mock_store = Mock()
-    mock_store.get.return_value = DataFrameSplits(train=sample_tickers_df)
+    mock_store.get.side_effect = [
+        DataFrameSplits(train=pd.DataFrame({"timestamp": [_midnight_ts(5)]})),  # prices
+        DataFrameSplits(train=sample_tickers_df),  # tickers
+    ]
     mock_store_class.return_value = mock_store
     prices_etl._store = mock_store
     
@@ -424,7 +617,7 @@ def test_full_etl_pipeline(
     # Run full pipeline
     prices_etl.extract()
      # Verify method calls
-    mock_store.get.assert_called_once()
+    assert mock_store.get.call_count == 2
 
     prices_etl.transform()
     prices_etl.load()
