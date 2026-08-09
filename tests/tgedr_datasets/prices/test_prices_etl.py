@@ -1,6 +1,7 @@
 """Tests for PricesEtl class."""
 
 import logging
+import time
 from datetime import datetime, UTC, timedelta
 from unittest.mock import Mock, patch
 
@@ -91,14 +92,18 @@ def test_extract_with_default_cutoff_date(
     mock_store_class: Mock,
     sample_tickers_df: pd.DataFrame,
     sample_prices: list[Price],
+    fixed_today: datetime,
 ) -> None:
-    """Test extract method with default cutoff date (no target_dataset)."""
-    config = {"tickers_dataset": "test/tickers"}
+    """Test extract method with default cutoff date (no price_date)."""
+    config = {"tickers_dataset": "test/tickers", "target_dataset": "test/prices"}
     prices_etl = PricesEtl(configuration=config)
     
-    # Mock store
+    # Mock store: prices first (for _find_missing_weekdays), then tickers
     mock_store = Mock()
-    mock_store.get.return_value = DataFrameSplits(train=sample_tickers_df)
+    mock_store.get.side_effect = [
+        DataFrameSplits(train=pd.DataFrame({"timestamp": [_midnight_ts(0), _midnight_ts(1)]})),  # prices (no gaps)
+        DataFrameSplits(train=sample_tickers_df),  # tickers
+    ]
     mock_store_class.return_value = mock_store
     
     # Mock price fetcher
@@ -112,7 +117,7 @@ def test_extract_with_default_cutoff_date(
     prices_etl.extract()
     
     assert len(prices_etl._data) == 8  # 4 tickers * 2 prices each
-    mock_store.get.assert_called_once_with(key="test/tickers")
+    assert mock_store.get.call_count == 2  # prices + tickers
     assert mock_fetcher.get_prices.call_count == 4
 
 
@@ -126,7 +131,7 @@ def test_extract_with_custom_cutoff_date(
 ) -> None:
     """Test extract method with custom cutoff date."""
     custom_date = 1738886400  # Some timestamp
-    config = {"tickers_dataset": "test/tickers", "price_date": custom_date}
+    config = {"tickers_dataset": "test/tickers", "target_dataset": "test/prices", "price_date": custom_date}
     prices_etl = PricesEtl(configuration=config)
     
     # Mock store
@@ -158,7 +163,7 @@ def test_extract_filters_latest_tickers(
     sample_prices: list[Price],
 ) -> None:
     """Test extract filters tickers to only use the latest date."""
-    config = {"tickers_dataset": "test/tickers"}
+    config = {"tickers_dataset": "test/tickers", "target_dataset": "test/prices"}
     prices_etl = PricesEtl(configuration=config)
     
     # DataFrame with multiple dates
@@ -196,7 +201,7 @@ def test_extract_logs_info(
 ) -> None:
     """Test extract method logs information."""
     caplog.set_level(logging.INFO)
-    config = {"tickers_dataset": "test/tickers"}
+    config = {"tickers_dataset": "test/tickers", "target_dataset": "test/prices"}
     prices_etl = PricesEtl(configuration=config)
     
     mock_store = Mock()
@@ -318,6 +323,42 @@ def test_extract_backfills_missing_weekdays(
     # Verify fetcher was called with a missing date (yesterday)
     called_dates = [call[0][1] for call in mock_fetcher.get_prices.call_args_list]
     assert _midnight_ts(1) in called_dates
+
+
+@patch("tgedr_datasets.prices.etl.HuggingFaceDatasetStore")
+@patch("tgedr_datasets.prices.etl.PriceFetcher")
+def test_extract_limits_catchup_batch_size(
+    mock_price_fetcher_class: Mock,
+    mock_store_class: Mock,
+    sample_tickers_df: pd.DataFrame,
+    sample_prices: list[Price],
+    fixed_today: datetime,
+) -> None:
+    """Test extract limits the number of catchup dates to _CATCHUP_BATCH_SIZE."""
+    config = {"tickers_dataset": "test/tickers", "target_dataset": "test/prices"}
+    prices_etl = PricesEtl(configuration=config)
+
+    # Prices dataset has an old date (30 days ago) producing many missing weekdays
+    mock_store = Mock()
+    mock_store.get.side_effect = [
+        DataFrameSplits(train=pd.DataFrame({"timestamp": [_midnight_ts(30)]})),  # prices (many gaps)
+        DataFrameSplits(train=sample_tickers_df),  # tickers
+    ]
+    mock_store_class.return_value = mock_store
+
+    mock_fetcher = Mock()
+    mock_fetcher.get_prices.return_value = sample_prices[:1]
+    mock_price_fetcher_class.get_instance.return_value = mock_fetcher
+
+    prices_etl._store = mock_store
+
+    prices_etl.extract()
+
+    # Should fetch at most _CATCHUP_BATCH_SIZE dates per ticker
+    from tgedr_datasets.prices.etl import _CATCHUP_BATCH_SIZE
+    unique_dates = {call[0][1] for call in mock_fetcher.get_prices.call_args_list}
+    assert len(unique_dates) == _CATCHUP_BATCH_SIZE
+    assert mock_fetcher.get_prices.call_count == 4 * _CATCHUP_BATCH_SIZE  # 4 tickers * batch size
 
 
 @patch("tgedr_datasets.prices.etl.HuggingFaceDatasetStore")
@@ -638,7 +679,7 @@ def test_extract_with_configuration_injection(
 ) -> None:
     """Test extract method with configuration injection."""
 
-    config = {"tickers_dataset": "test/configured_tickers", "price_date": 1738886400}
+    config = {"tickers_dataset": "test/configured_tickers", "target_dataset": "test/prices", "price_date": int(time.time())}
     etl = PricesEtl(configuration=config)
     
     mock_store = Mock()

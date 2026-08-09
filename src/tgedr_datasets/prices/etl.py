@@ -21,6 +21,7 @@ from tgedr_datasets.utils.metrics import MetricsCollector
 logger = logging.getLogger(__name__)
 
 _CONTRACT_PATH = Path(__file__).parent / "prices.odcs.yaml"
+_CATCHUP_BATCH_SIZE = 5
 
 
 class PricesEtl(Etl):
@@ -41,14 +42,13 @@ class PricesEtl(Etl):
 
 
     @Etl.inject_configuration
-    def extract(self, tickers_dataset: str, target_dataset: str | None = None, price_date: int | None = None) -> None:
+    def extract(self, tickers_dataset: str, target_dataset: str, price_date: int | None = None) -> None:
         """Extract ticker data and fetch prices for each ticker.
 
         Args:
             tickers_dataset: URL or key to the tickers dataset.
-            target_dataset: Optional URL or key to the prices dataset, used to find
-                missing weekday dates when no explicit price_date is provided. If
-                None, the current date is used.
+            target_dataset: URL or key to the prices dataset, used to find missing
+                weekday dates when no explicit price_date is provided.
             price_date: Optional cutoff timestamp for price data. If not provided,
                        missing weekday dates are backfilled from the prices dataset.
         """
@@ -58,13 +58,9 @@ class PricesEtl(Etl):
             cutoff_ts_dt = datetime.fromtimestamp(price_date, tz=UTC)
             self._cutoff_date: int = int(cutoff_ts_dt.replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
             dates_to_fetch: list[int] = [self._cutoff_date]
-        elif target_dataset is not None:
-            dates_to_fetch = self._find_missing_weekdays(target_dataset)
-            if not dates_to_fetch:
-                dates_to_fetch = [self._cutoff_date]
-            self._cutoff_date = dates_to_fetch[-1]
         else:
-            dates_to_fetch = [self._cutoff_date]
+            dates_to_fetch = self._find_missing_weekdays(target_dataset)
+            dates_to_fetch = [self._cutoff_date] if not dates_to_fetch else dates_to_fetch[:_CATCHUP_BATCH_SIZE]
 
         df_tickers = self._store.get(key=tickers_dataset).train
         max_date: int = df_tickers["date"].max()
