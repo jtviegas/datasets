@@ -63,6 +63,8 @@ class PricesEtl(Etl):
             dates_to_fetch = [self._cutoff_date] if not dates_to_fetch else dates_to_fetch[:_CATCHUP_BATCH_SIZE]
 
         df_tickers = self._store.get(key=tickers_dataset).train
+        # drop duplicates in case we ran tickers twice in the same day (timestamp)
+        df_tickers = df_tickers.drop_duplicates(subset=["id"], keep="first")
         max_date: int = df_tickers["date"].max()
         tickers = df_tickers[df_tickers["date"] == max_date]["ticker"].tolist()
         max_data_formatted = datetime.fromtimestamp(max_date, tz=UTC).strftime("%Y-%m-%d")

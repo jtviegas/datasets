@@ -24,8 +24,9 @@ def test_contract_file_is_packaged() -> None:
 def sample_tickers_df() -> pd.DataFrame:
     """Fixture providing sample tickers DataFrame."""
     return pd.DataFrame({
+        "id": [1, 2, 3],
         "ticker": ["AAPL", "GOOGL", "MSFT"],
-        "date": [1702000000, 1702000000, 1701900000]  # Two tickers on latest date
+        "date": [int(time.time()), int(time.time()), int(time.time())]  # Two tickers on latest date
     })
 
 
@@ -85,6 +86,7 @@ def test_extract_with_tickers_and_articles(
     mock_aggregator.get_news.side_effect = [
         [sample_articles[0]],  # For AAPL
         [sample_articles[1]],  # For GOOGL
+        [],  # For MSFT (no articles)
     ]
     mock_aggregator_class.return_value = mock_aggregator
 
@@ -94,9 +96,10 @@ def test_extract_with_tickers_and_articles(
     mock_store.get.assert_called_once_with(key="test_tickers_dataset")
 
     # Verify aggregator was called for each ticker on latest date
-    assert mock_aggregator.get_news.call_count == 2
+    assert mock_aggregator.get_news.call_count == 3
     mock_aggregator.get_news.assert_any_call("AAPL", etl._processing_time, 2)
     mock_aggregator.get_news.assert_any_call("GOOGL", etl._processing_time, 2)
+    mock_aggregator.get_news.assert_any_call("MSFT", etl._processing_time, 2)
 
     # Verify articles were added to _data
     assert len(etl._data) == 2

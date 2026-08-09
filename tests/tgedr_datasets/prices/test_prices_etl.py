@@ -59,6 +59,7 @@ def sample_prices() -> list[Price]:
 def sample_tickers_df() -> pd.DataFrame:
     """Provide sample ticker DataFrame."""
     return pd.DataFrame({
+        "id": [1, 2, 3, 4],
         "ticker": ["AAPL", "MSFT", "GOOGL", "AMZN"],
         "date": [1738800000, 1738800000, 1738800000, 1738800000],
     })
@@ -168,6 +169,7 @@ def test_extract_filters_latest_tickers(
     
     # DataFrame with multiple dates
     df_with_multiple_dates = pd.DataFrame({
+        "id": [1, 2, 3, 4],
         "ticker": ["AAPL", "MSFT", "AAPL", "GOOGL"],
         "date": [1738800000, 1738800000, 1738886400, 1738886400],  # Two different dates
     })
