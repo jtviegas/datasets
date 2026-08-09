@@ -77,18 +77,24 @@ class TestPlotMetrics:
         assert plot_file.exists()
 
     def test_handles_many_metric_columns(self, tmp_path: Path) -> None:
-        """Test plot with many metric columns."""
+        """Test that all metric columns are overlaid on a single axes with a legend."""
         csv_path = tmp_path / "many.csv"
         fieldnames = ["timestamp", "m1", "m2", "m3", "m4", "m5", "m6"]
         with csv_path.open("w", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
-            writer.writerow({"timestamp": 1754600000, "m1": 1, "m2": 2, "m3": 3, "m4": 4, "m5": 5, "m6": 6})
+            writer.writerow({"timestamp": int(time.time()), "m1": 1, "m2": 2, "m3": 3, "m4": 4, "m5": 5, "m6": 6})
 
         plot_metrics(str(tmp_path), "many")
 
         plot_file = tmp_path / "many_metrics.png"
         assert plot_file.exists()
+
+        # All metric columns should be overlaid on a single axes with a legend
+        fig = plt.gcf()
+        assert len(fig.axes) == 1
+        legend_labels = [t.get_text() for t in fig.axes[0].get_legend().get_texts()]
+        assert legend_labels == ["m1", "m2", "m3", "m4", "m5", "m6"]
 
     def test_with_cutoff_days(self, metrics_csv: Path) -> None:
         """Test plot with a cutoff filter."""

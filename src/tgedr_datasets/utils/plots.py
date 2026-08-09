@@ -152,11 +152,11 @@ def do_plots(base_data_url: str, dataset_name: str, base_plots_url: str = ".") -
 
 
 def plot_metrics(metrics_dir: str, dataset_name: str, cutoff_days: int | None = None) -> None:
-    """Plot line charts for each metric from a metrics CSV file.
+    """Plot all count metrics for a dataset on a single chart.
 
     Reads the CSV file for the given dataset, converts the timestamp column to
-    datetime, and generates one line plot per metric column showing the trend
-    over time.
+    datetime, and overlays every metric column as a line on one shared axes,
+    saving a single plot per dataset.
 
     Parameters
     ----------
@@ -190,17 +190,16 @@ def plot_metrics(metrics_dir: str, dataset_name: str, cutoff_days: int | None = 
         return
 
     plt.clf()
-    _, axes = plt.subplots(len(metric_cols), 1, figsize=(12, 4 * len(metric_cols)), sharex=True)
-    if len(metric_cols) == 1:
-        axes = [axes]
+    _, ax = plt.subplots(figsize=(12, 6))
+    for col in metric_cols:
+        ax.plot(metrics_df["timestamp"], metrics_df[col], marker="o", linewidth=1.5, markersize=4, label=col)
 
-    for ax, col in zip(axes, metric_cols, strict=True):
-        ax.plot(metrics_df["timestamp"], metrics_df[col], marker="o", linewidth=1.5, markersize=4)
-        ax.set_ylabel(col)
-        ax.set_title(f"{dataset_name} — {col}")
-        ax.grid(visible=True, alpha=0.3)
-
-    axes[-1].xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
+    ax.set_title(f"{dataset_name} — metrics")
+    ax.set_xlabel("Timestamp")
+    ax.set_ylabel("Count")
+    ax.grid(visible=True, alpha=0.3)
+    ax.legend()
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
     plt.gcf().autofmt_xdate()
     plt.tight_layout()
     plt.savefig(f"{metrics_dir}/{dataset_name}_metrics.png", dpi=300, bbox_inches="tight")
