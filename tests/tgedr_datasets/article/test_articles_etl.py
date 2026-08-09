@@ -1,5 +1,6 @@
 """Unit tests for ArticlesEtl class."""
 import time
+from datetime import datetime, UTC
 import pandas as pd
 import pytest
 from unittest.mock import Mock, patch
@@ -74,12 +75,15 @@ def test_extract_with_tickers_and_articles(
     sample_articles: list[Article],
 ) -> None:
     """Test extract method processes tickers and aggregates articles."""
-    config = {"tickers_dataset": "test_tickers_dataset"}
+    config = {"tickers_dataset": "test_tickers_dataset", "target_dataset": "test_articles"}
     etl = ArticlesEtl(configuration=config)
 
-    # Setup mocks
+    # Setup mocks: articles first (for _find_missing_dates), then tickers
     mock_store = Mock()
-    mock_store.get.return_value = DataFrameSplits(train=sample_tickers_df)
+    mock_store.get.side_effect = [
+        DataFrameSplits(train=pd.DataFrame({"timestamp": [int(time.time())]})),  # articles (no gaps)
+        DataFrameSplits(train=sample_tickers_df),  # tickers
+    ]
     etl._store = mock_store  # Override the store
 
     mock_aggregator = Mock()
@@ -92,8 +96,8 @@ def test_extract_with_tickers_and_articles(
 
     etl.extract()
 
-    # Verify store.get was called
-    mock_store.get.assert_called_once_with(key="test_tickers_dataset")
+    # Verify store.get was called twice (articles + tickers)
+    assert mock_store.get.call_count == 2
 
     # Verify aggregator was called for each ticker on latest date
     assert mock_aggregator.get_news.call_count == 3
@@ -113,7 +117,7 @@ def test_extract_with_base_date_parameter(
     sample_tickers_df: pd.DataFrame,
 ) -> None:
     """Test extract method uses base_date parameter when provided."""
-    config = {"tickers_dataset": "test_tickers_dataset", "base_date": 1702100000}
+    config = {"tickers_dataset": "test_tickers_dataset", "target_dataset": "test_articles", "base_date": int(time.time())}
     etl = ArticlesEtl(configuration=config)
 
     mock_store = Mock()
@@ -220,6 +224,100 @@ def test_transform_deduplicates_by_id(
     assert etl._new_data.shape[0] == 2
     assert etl._new_data["id"].is_unique
     assert etl._metrics.get("duplicate_id_count") == 0
+
+
+@patch("tgedr_datasets.article.etl.HuggingFaceDatasetStore")
+def test_find_missing_dates_empty_dataset(mock_store_class: Mock) -> None:
+    """Test _find_missing_dates returns today when the dataset is empty."""
+    etl = ArticlesEtl()
+    mock_store = Mock()
+    mock_store.get.return_value = DataFrameSplits(train=pd.DataFrame())
+    etl._store = mock_store
+
+    result = etl._find_missing_dates("test/articles")
+
+    assert result == [int(datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0).timestamp())]
+
+
+@patch("tgedr_datasets.article.etl.HuggingFaceDatasetStore")
+def test_find_missing_dates_unreadable_dataset(mock_store_class: Mock) -> None:
+    """Test _find_missing_dates returns today when the dataset cannot be read."""
+    etl = ArticlesEtl()
+    mock_store = Mock()
+    mock_store.get.side_effect = Exception("boom")
+    etl._store = mock_store
+
+    result = etl._find_missing_dates("test/articles")
+
+    assert result == [int(datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0).timestamp())]
+
+
+@patch("tgedr_datasets.article.etl.HuggingFaceDatasetStore")
+def test_find_missing_dates_no_gaps(mock_store_class: Mock) -> None:
+    """Test _find_missing_dates returns empty when all dates are present."""
+    etl = ArticlesEtl()
+    now = int(time.time())
+    df = pd.DataFrame({"timestamp": [now, now - 86400]})
+    mock_store = Mock()
+    mock_store.get.return_value = DataFrameSplits(train=df)
+    etl._store = mock_store
+
+    result = etl._find_missing_dates("test/articles")
+
+    assert result == []
+
+
+@patch("tgedr_datasets.article.etl.HuggingFaceDatasetStore")
+def test_find_missing_dates_returns_gaps(mock_store_class: Mock) -> None:
+    """Test _find_missing_dates returns missing date timestamps."""
+    etl = ArticlesEtl()
+    now = int(time.time())
+    # Dataset has an older date (3 days ago) but today is present; yesterday is missing
+    df = pd.DataFrame({"timestamp": [now - 86400 * 3, now]})
+    mock_store = Mock()
+    mock_store.get.return_value = DataFrameSplits(train=df)
+    etl._store = mock_store
+
+    result = etl._find_missing_dates("test/articles")
+
+    # Should have missing dates (yesterday and day before yesterday at minimum)
+    assert len(result) >= 2
+    # All results should be midnight timestamps
+    for ts in result:
+        dt = datetime.fromtimestamp(ts, tz=UTC)
+        assert dt.hour == 0 and dt.minute == 0 and dt.second == 0
+
+
+@patch("tgedr_datasets.article.etl.ArticlesAggregator")
+@patch("tgedr_datasets.article.etl.HuggingFaceDatasetStore")
+def test_extract_backfills_missing_dates(
+    mock_store_class: Mock,
+    mock_aggregator_class: Mock,
+    sample_tickers_df: pd.DataFrame,
+    sample_articles: list[Article],
+) -> None:
+    """Test extract backfills missing dates from the articles dataset."""
+    config = {"tickers_dataset": "test/tickers", "target_dataset": "test/articles"}
+    etl = ArticlesEtl(configuration=config)
+
+    old_ts = int(time.time()) - 86400 * 3  # 3 days ago
+    mock_store = Mock()
+    mock_store.get.side_effect = [
+        DataFrameSplits(train=pd.DataFrame({"timestamp": [old_ts]})),  # articles (gaps to today)
+        DataFrameSplits(train=sample_tickers_df),  # tickers
+    ]
+    mock_store_class.return_value = mock_store
+
+    mock_aggregator = Mock()
+    mock_aggregator.get_news.return_value = sample_articles[:1]
+    mock_aggregator_class.return_value = mock_aggregator
+
+    etl._store = mock_store
+
+    etl.extract()
+
+    # Should fetch for each missing date (at least yesterday)
+    assert mock_aggregator.get_news.call_count >= 3  # 3 tickers * at least 1 missing date
 
 
 @patch("tgedr_datasets.article.etl.ArticlesAggregator")

@@ -8,7 +8,7 @@ a Parquet data store.
 import logging
 from pathlib import Path
 from typing import Any
-from datetime import datetime, UTC
+from datetime import datetime, UTC, timedelta
 import pandas as pd
 from tgedr_dataops_abs.etl import Etl
 from tgedr_datasets.article.article import Article  # noqa: TC001
@@ -49,17 +49,25 @@ class ArticlesEtl(Etl):
 
 
     @Etl.inject_configuration
-    def extract(self, tickers_dataset: str, base_date: int |None = None) -> None:
+    def extract(self, tickers_dataset: str, target_dataset: str, base_date: int | None = None) -> None:
         """Extract news articles for the latest tickers from the provided URL.
 
         Args:
             tickers_dataset (str): URL or key to retrieve tickers data.
+            target_dataset (str): URL or key to the articles dataset, used to find
+                missing dates when no explicit base_date is provided.
             base_date (int | None): Optional base date for extraction.
 
         This method fetches the latest tickers, retrieves news articles for each,
         and stores them in the internal data list.
         """
-        logger.info(f"[extract|in] ({tickers_dataset}, {base_date})")
+        logger.info(f"[extract|in] ({tickers_dataset}, {target_dataset}, {base_date})")
+
+        if base_date is not None:
+            dates_to_fetch: list[int] = [base_date]
+        else:
+            dates_to_fetch = self._find_missing_dates(target_dataset)
+            dates_to_fetch = dates_to_fetch if dates_to_fetch else [self._processing_time]
 
         df_all_tickers = self._store.get(key=tickers_dataset).train
         max_date: int = df_all_tickers["date"].max()
@@ -70,11 +78,13 @@ class ArticlesEtl(Etl):
         max_date_formatted = datetime.fromtimestamp(max_date, tz=UTC).strftime("%Y-%m-%d")
         logger.info(f"[extract] tickers max date: {max_date_formatted} len: {len(tickers)}")
 
-        processing_ts_formatted = datetime.fromtimestamp(self._processing_time, tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
         articles_aggregator = ArticlesAggregator()
-        logger.info(f"[extract] getting news to: {processing_ts_formatted} from 2 days before")
-        for ticker in tickers:
-            self._data.extend(articles_aggregator.get_news(ticker, self._processing_time, 2))
+        for date in dates_to_fetch:
+            self._processing_time = date
+            processing_ts_formatted = datetime.fromtimestamp(self._processing_time, tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
+            logger.info(f"[extract] getting news to: {processing_ts_formatted} from 2 days before")
+            for ticker in tickers:
+                self._data.extend(articles_aggregator.get_news(ticker, self._processing_time, 2))
 
         logger.info("[extract|out] extracted %d articles", len(self._data))
 
@@ -116,6 +126,58 @@ class ArticlesEtl(Etl):
         self._metrics.set(
             "empty_description_count", int(data["description"].isna().sum() + (data["description"].str.strip() == "").sum())
         )
+
+    def _find_missing_dates(self, articles_dataset: str) -> list[int]:
+        """Find dates not yet present in the articles dataset.
+
+        Reads the existing articles dataset and returns the midnight-UTC epoch
+        timestamps of all dates from the first article timestamp found in the
+        dataset up to today that are missing from the dataset. If the dataset
+        is empty or has no data, the current date is returned so it can be
+        processed.
+
+        Args:
+            articles_dataset: URL or key to the articles dataset.
+
+        Returns:
+            List of midnight-UTC epoch timestamps for missing dates.
+        """
+        logger.info(f"[_find_missing_dates|in] ({articles_dataset})")
+
+        today_midnight = int(datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
+
+        try:
+            articles_df = self._store.get(key=articles_dataset).train
+        except Exception:  # noqa: BLE001
+            logger.warning("[_find_missing_dates] could not read articles dataset %s, defaulting to today", articles_dataset)
+            return [today_midnight]
+
+        if articles_df is None or articles_df.empty or "timestamp" not in articles_df.columns:
+            logger.info("[_find_missing_dates] articles dataset empty, defaulting to today")
+            return [today_midnight]
+
+        existing_ts = set()
+        for ts in articles_df["timestamp"].astype(int).tolist():
+            dt = datetime.fromtimestamp(ts, tz=UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+            existing_ts.add(int(dt.timestamp()))
+        first_ts = int(articles_df["timestamp"].min())
+        start_dt = datetime.fromtimestamp(first_ts, tz=UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        end_dt = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+
+        missing: list[int] = []
+        current = start_dt
+        while current <= end_dt:
+            ts = int(current.timestamp())
+            if ts not in existing_ts:
+                missing.append(ts)
+            current += timedelta(days=1)
+
+        if not missing:
+            logger.info("[_find_missing_dates] no missing dates found")
+            return []
+
+        logger.info("[_find_missing_dates|out] => %d missing dates: %s", len(missing), missing)
+        return missing
 
     def validate_transform(self) -> None:
         """Validate the transformed articles data against its data contract.
