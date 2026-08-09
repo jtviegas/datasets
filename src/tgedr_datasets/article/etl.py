@@ -86,7 +86,7 @@ class ArticlesEtl(Etl):
         for article in self._data:
             self._new_data = pd.concat([self._new_data, pd.DataFrame([article.to_pd_df_row()])], ignore_index=True)
         self._new_data["processing_time"] = self._processing_time
-        if not self._new_data.empty and "id" in self._new_data.columns:
+        if not self._new_data.empty:
             self._new_data = self._new_data.sort_values(by="id")
 
         self._collect_metrics()

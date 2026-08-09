@@ -33,18 +33,20 @@ class Article:
 
     @property
     def id(self) -> int:
-        """Generate a unique identifier from query and timestamp.
+        """Generate a unique identifier from query, source, url and timestamp.
 
-        Combines the hash of the query string with the timestamp to create
-        a unique integer identifier for this news article. Uses Python's
-        built-in hash on a tuple to ensure consistent and collision-resistant IDs.
+        Combines the hash of the query, source, url and timestamp to create
+        a unique integer identifier for this news article. The URL is included
+        because it is both stable (the same article always has the same URL) and
+        unique (different articles have different URLs), which prevents hash
+        collisions while keeping ids stable across re-fetches.
 
         Returns:
             int: Unique identifier as integer
 
         """
         # Create deterministic hash using SHA-256
-        hash_input = f"{self.query}:{self.source}:{self.title[:14]}:{self.description[:21]}:{self.timestamp}".encode()
+        hash_input = f"{self.query}:{self.source}:{self.url}:{self.timestamp}".encode()
         hash_digest = hashlib.sha256(hash_input).hexdigest()
         # Convert first 16 characters of hex to integer (64 bits)
         return int(hash_digest[:16], 16)

@@ -89,30 +89,30 @@ def test_article_id_different_source(valid_article: Article) -> None:
     assert article2.id != valid_article.id
 
 
-def test_article_id_different_title(valid_article: Article) -> None:
-    """Test Article.id differs with different title (within first 7 chars)."""
-    article2 = Article(
-        title="Apple Plunges",  # Different title, differs in first 7 chars
-        description="AAPL rises on strong quarterly results",
-        url="https://example.com/news/apple-surge",
-        timestamp=valid_article.timestamp,
-        source="Financial Times",
-        query="AAPL",
-    )
-    assert article2.id != valid_article.id
-
-
-def test_article_id_different_description(valid_article: Article) -> None:
-    """Test Article.id differs with different description."""
+def test_article_id_different_url(valid_article: Article) -> None:
+    """Test Article.id differs with different URL."""
     article2 = Article(
         title="Apple Stock Surges",
-        description="AAPL falls on weak quarterly results",  # Different description
-        url="https://example.com/news/apple-surge",
+        description="AAPL rises on strong quarterly results",
+        url="https://example.com/news/apple-surge-2",  # Different URL
         timestamp=valid_article.timestamp,
         source="Financial Times",
         query="AAPL",
     )
     assert article2.id != valid_article.id
+
+
+def test_article_id_same_url_same_id(valid_article: Article) -> None:
+    """Test Article.id is stable for the same URL regardless of title/description."""
+    article2 = Article(
+        title="Completely Different Headline",
+        description="Totally different description text",
+        url=valid_article.url,  # Same URL
+        timestamp=valid_article.timestamp,
+        source=valid_article.source,
+        query=valid_article.query,
+    )
+    assert article2.id == valid_article.id
 
 def test_article_to_pd_df_row(valid_article: Article) -> None:
     """Test converting Article to pandas DataFrame row dictionary."""
