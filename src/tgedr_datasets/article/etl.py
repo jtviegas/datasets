@@ -30,6 +30,7 @@ class ArticlesEtl(Etl):
     """
 
     __SEED = 53
+    _CATCHUP_BATCH_SIZE = 3
 
     def __init__(self, configuration: dict[str, Any] | None = None) -> None:
         """Initialize the ArticlesEtl instance with configuration and setup internal state.
@@ -67,7 +68,9 @@ class ArticlesEtl(Etl):
             dates_to_fetch: list[int] = [base_date]
         else:
             dates_to_fetch = self._find_missing_dates(target_dataset)
-            dates_to_fetch = dates_to_fetch if dates_to_fetch else [self._processing_time]
+            dates_to_fetch = dates_to_fetch[: self._CATCHUP_BATCH_SIZE] if dates_to_fetch else [self._processing_time]
+
+        logger.info(f"[extract] fetching dates: {dates_to_fetch}")
 
         df_all_tickers = self._store.get(key=tickers_dataset).train
         max_date: int = df_all_tickers["date"].max()
