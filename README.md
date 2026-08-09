@@ -4,6 +4,10 @@
 ![Coverage](./coverage.svg)
 [![PyPI](https://img.shields.io/pypi/v/tgedr-datasets)](https://pypi.org/project/tgedr-datasets/)
 
+## motivation
+
+This repository provides a production-grade Python library (`tgedr-datasets`) for building and running automated data pipelines that collect, validate, and store financial market data. It orchestrates the extraction of stock tickers, daily OHLCV prices (via Yahoo Finance), and news articles (via Alpha Vantage, NewsAPI, and Finnhub), transforms them into structured formats, validates them against ODCS data contracts, and loads them into Hugging Face datasets. 
+
 ## datalake pipelines
 
 
