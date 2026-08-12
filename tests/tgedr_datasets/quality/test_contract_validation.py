@@ -142,3 +142,46 @@ def test_validate_articles_null_title_fails(valid_articles_df: pd.DataFrame) -> 
 
     with pytest.raises(ValidationError, match="does not meet contract"):
         validate_df_against_contract(valid_articles_df, ARTICLES_CONTRACT)
+
+
+def test_validate_articles_description_partial_nulls_pass() -> None:
+    """Test description allows sparse nulls according to contract tolerance."""
+    rows = 100
+    df = pd.DataFrame(
+        {
+            "id": list(range(rows)),
+            "query": ["AAPL"] * rows,
+            "actual_time": [1701388800 + i for i in range(rows)],
+            "title": [f"title-{i}" for i in range(rows)],
+            "description": [f"desc-{i}" for i in range(rows)],
+            "url": [f"https://example.com/{i}" for i in range(rows)],
+            "source": ["Reuters"] * rows,
+            "processing_time": [1701500000] * rows,
+        }
+    )
+    df.loc[0, "description"] = None
+
+    result = validate_df_against_contract(df, ARTICLES_CONTRACT)
+
+    assert result["success"] is True
+
+
+def test_validate_articles_description_too_many_nulls_fails() -> None:
+    """Test description fails validation when null ratio exceeds tolerance."""
+    rows = 100
+    df = pd.DataFrame(
+        {
+            "id": list(range(rows)),
+            "query": ["AAPL"] * rows,
+            "actual_time": [1701388800 + i for i in range(rows)],
+            "title": [f"title-{i}" for i in range(rows)],
+            "description": [f"desc-{i}" for i in range(rows)],
+            "url": [f"https://example.com/{i}" for i in range(rows)],
+            "source": ["Reuters"] * rows,
+            "processing_time": [1701500000] * rows,
+        }
+    )
+    df.loc[0:2, "description"] = None
+
+    with pytest.raises(ValidationError, match="does not meet contract"):
+        validate_df_against_contract(df, ARTICLES_CONTRACT)
