@@ -181,7 +181,7 @@ def test_validate_articles_description_too_many_nulls_fails() -> None:
             "processing_time": [1701500000] * rows,
         }
     )
-    df.loc[0:1, "description"] = None
+    df.loc[0:2, "description"] = None
 
     with pytest.raises(ValidationError, match="does not meet contract"):
         validate_df_against_contract(df, ARTICLES_CONTRACT)
