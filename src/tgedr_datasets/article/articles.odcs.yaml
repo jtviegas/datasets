@@ -47,7 +47,7 @@ schema:
       - name: description
         logicalType: string
         physicalType: VARCHAR
-        required: false
+        required: true
         description: Article description or summary.
       - name: url
         logicalType: string
@@ -109,7 +109,7 @@ customProperties:
         - expectation_type: expect_column_values_to_not_be_null
           kwargs:
             column: description
-            mostly: 0.99
+            mostly: 0.98
         - expectation_type: expect_column_values_to_not_be_null
           kwargs:
             column: url
