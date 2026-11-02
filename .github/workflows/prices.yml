@@ -2,8 +2,8 @@ name: prices
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 23 * * 1-5'
+  # schedule:
+  #   - cron: '0 23 * * 1-5'
 
 env:
   HF_DS_TICKERS: "jtviegas/ticker_analysis_tickers"
@@ -22,7 +22,7 @@ jobs:
       run: curl -LsSf https://astral.sh/uv/install.sh | sh
     - name: 'setup python env'
       run: |
-        uv venv .venv --python 3.11
+        uv venv .venv --python 3.13
     - name: 'install datasets library'
       run: uv pip install --python .venv/bin/python tgedr-datasets
     - name: 'get new prices'
