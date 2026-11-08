@@ -16,11 +16,11 @@ This repository provides a production-grade Python library (`tgedr-datasets`) fo
 [![articles](https://github.com/jtviegas/datasets/actions/workflows/articles.yml/badge.svg)](https://github.com/jtviegas/datasets/actions/workflows/articles.yml)
 
 
-### articles
+### row metrics
 
-[download @ hugging face](https://huggingface.co/datasets/jtviegas/ticker_analysis_articles)
+![articles metrics](metrics/rows.png)
 
-![articles metrics](metrics/articles_metrics.png)
+### articles: [@hugging face](https://huggingface.co/datasets/jtviegas/ticker_analysis_articles)
 
 ### prices
 
