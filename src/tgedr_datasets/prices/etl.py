@@ -89,15 +89,15 @@ class PricesEtl(Etl4GH):
         logger.info("[validate_transform|out]")
 
     @Etl4GH.inject_configuration
-    def load(self, target_dataset: str) -> str:
+    def load(self, target_dataset: str) -> None:
         """Load transformed price data into the target data store.
 
         Args:
             target_dataset (str): The dataset key to load the prices into.
 
         Returns:
-            The target URL where the data was loaded.
+            None
         """
         logger.info(f"[load|in] ({target_dataset})")
-        self._store.save(df=Dataset.from_pandas(self._result), key=target_dataset, split="train", append=True)
+        self._store.update(df=Dataset.from_pandas(self._result), key=target_dataset, key_fields=["id"], split="train")
         logger.info("[load|out]")

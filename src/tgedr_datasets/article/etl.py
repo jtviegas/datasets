@@ -115,15 +115,15 @@ class ArticlesEtl(Etl4GH):
         logger.info("[validate_transform|out]")
 
     @Etl4GH.inject_configuration
-    def load(self, target_dataset: str) -> str:
+    def load(self, target_dataset: str) -> None:
         """Load the transformed articles into the target dataset.
 
         Args:
             target_dataset (str): The dataset key to load the articles into.
 
         Returns:
-            str: The target dataset key.
+            None
         """
         logger.info(f"[load|in] ({target_dataset})")
-        self._store.save(df=Dataset.from_pandas(self._result), key=target_dataset, split="train", append=True)
+        self._store.update(df=Dataset.from_pandas(self._result), key=target_dataset, key_fields=["id"], split="train")
         logger.info("[load|out]")
