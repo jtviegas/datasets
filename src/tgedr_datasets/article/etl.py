@@ -48,7 +48,7 @@ class ArticlesEtl(Etl4GH):
 
     def _get_tickers(self, tickers_dataset: str) -> list[str]:
         logger.info(f"[extract|in] ({tickers_dataset})")
-        df_all_tickers = self._store.get(key=tickers_dataset).train
+        df_all_tickers = self._store.get(key=tickers_dataset).train.to_pandas()
         max_date: int = df_all_tickers["actual_time"].max()
         df_last_tickers = df_all_tickers[df_all_tickers["actual_time"] == max_date]
         # drop duplicates in case we ran tickers twice in the same day (timestamp)

@@ -43,10 +43,10 @@ def test_get_tickers_selects_latest_unique_tickers() -> None:
     etl = ArticlesEtl()
     etl._store = Mock()
     etl._store.get.return_value = DataFrameSplits(
-        train=pd.DataFrame({
+        train=Dataset.from_pandas(pd.DataFrame({
             "ticker": ["OLD", "AAPL", "AAPL", "MSFT"],
             "actual_time": [1, 2, 2, 2],
-        }),
+        })),
     )
 
     assert etl._get_tickers("tickers") == ["AAPL", "MSFT"]
@@ -58,7 +58,7 @@ def test_extract_uses_configured_tickers_and_aggregates(sample_articles: list[Ar
     etl = ArticlesEtl(configuration={"tickers_dataset": "tickers"})
     etl._store = Mock()
     etl._store.get.return_value = DataFrameSplits(
-        train=pd.DataFrame({"ticker": ["AAPL", "MSFT"], "actual_time": [1, 1]}),
+        train=Dataset.from_pandas(pd.DataFrame({"ticker": ["AAPL", "MSFT"], "actual_time": [1, 1]})),
     )
     with patch("tgedr_datasets.article.etl.ArticlesAggregator") as aggregator_class:
         aggregator = aggregator_class.return_value
