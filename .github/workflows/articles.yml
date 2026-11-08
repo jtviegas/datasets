@@ -3,7 +3,7 @@ name: articles
 on:
   workflow_dispatch:
   schedule:
-    - cron: '00 23 * * *'
+    - cron: '00 22 * * *'
 
 env:
   HF_DS_TICKERS: "jtviegas/ticker_analysis_tickers"

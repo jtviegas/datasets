@@ -3,7 +3,7 @@ name: prices
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 0 * * 1-5'
+    - cron: '0 23 * * 1-5'
 
 env:
   HF_DS_TICKERS: "jtviegas/ticker_analysis_tickers"
