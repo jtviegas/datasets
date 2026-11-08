@@ -1,414 +1,140 @@
-"""Tests for TickerEtl class."""
+"""Unit tests for TickerEtl."""
 
-import logging
-from datetime import datetime, UTC
-from unittest.mock import Mock, patch, MagicMock
+from datetime import UTC, datetime, tzinfo
+from unittest.mock import Mock, patch
 
-import pandas as pd
 import pytest
+from tgedr_dataops.store.hf_dataset import DataFrameSplits
 from tgedr_dataops_abs.great_expectations_validation import ValidationError
 
-from tgedr_dataops.store.hf_dataset import DataFrameSplits
 from tgedr_datasets.ticker.etl import TickerEtl, _CONTRACT_PATH
 
 
-def test_contract_file_is_packaged() -> None:
-    """Test that the ODCS data contract file is present next to the module.
-
-    Guards against packaging regressions where the ``*.odcs.yaml`` file is
-    omitted from the wheel, which would break contract validation at runtime.
-    """
-    assert _CONTRACT_PATH.exists(), f"missing data contract: {_CONTRACT_PATH}"
-
-
 @pytest.fixture
-def ticker_etl() -> TickerEtl:
-    """Provide a TickerEtl instance."""
-    return TickerEtl()
+def fixed_now() -> datetime:
+    """Freeze the ETL's datetime at a fixed instant in UTC."""
+
+    class FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz: tzinfo | None = None) -> datetime:
+            return datetime(2026, 8, 5, 12, tzinfo=tz or UTC)
+
+    with patch("tgedr_datasets.ticker.etl.datetime", FixedDatetime):
+        yield datetime(2026, 8, 5, 12, tzinfo=UTC)
 
 
 @pytest.fixture
 def sample_tickers() -> list[str]:
-    """Provide sample ticker data."""
-    return ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"]
+    """Provide sample ticker symbols."""
+    return ["AAPL", "MSFT", "GOOGL"]
 
 
-def test_ticker_etl_initialization() -> None:
-    """Test TickerEtl initialization."""
+def test_contract_file_is_packaged() -> None:
+    """The ODCS contract must be shipped beside the ETL module."""
+    assert _CONTRACT_PATH.exists()
+
+
+def test_initialization() -> None:
+    """Initialize empty state with a null result frame."""
     etl = TickerEtl()
-    
+
     assert etl._data == []
     assert etl._result is None
 
 
-def test_ticker_etl_initialization_with_config() -> None:
-    """Test TickerEtl initialization with configuration."""
-    config = {"source": "sp500", "target": "/tmp/test"}
-    etl = TickerEtl(configuration=config)
-    
-    assert etl._data == []
-    assert etl._result is None
+def test_extract_splits_and_strips_sources(sample_tickers: list[str]) -> None:
+    """Split the configured source string and pass stripped names to the fetcher."""
+    etl = TickerEtl(configuration={"source": "  sp500 , nasdaq100 "})
+    with patch("tgedr_datasets.ticker.etl.TickerFetcher") as fetcher_class:
+        fetcher_class.return_value.fetch.return_value = sample_tickers
+        metrics = Mock()
+        with patch("tgedr_datasets.ticker.etl.Metrics.instance", return_value=metrics):
+            etl.extract()
+
+    assert etl._data == sample_tickers
+    fetcher_class.return_value.fetch.assert_called_once_with(["sp500", "nasdaq100"])
+    metrics.add_to_gauge.assert_called_once_with(
+        name="datasets.ticker.etl.rows",
+        value=3,
+        attributes={"type": "tickers"},
+    )
 
 
-@patch("tgedr_datasets.ticker.etl.TickerFetcher")
-def test_extract_single_source(
-    mock_fetcher_class: Mock, sample_tickers: list[str]
-) -> None:
-    """Test extract method with single source."""
+def test_extract_single_source(sample_tickers: list[str]) -> None:
+    """Extract from a single configured source."""
+    etl = TickerEtl(configuration={"source": "sp500"})
+    with patch("tgedr_datasets.ticker.etl.TickerFetcher") as fetcher_class:
+        fetcher_class.return_value.fetch.return_value = sample_tickers
+        with patch("tgedr_datasets.ticker.etl.Metrics.instance"):
+            etl.extract()
 
-    ticker_etl = TickerEtl(configuration={"source": "sp500"})
-    mock_fetcher = Mock()
-    mock_fetcher.fetch.return_value = sample_tickers
-    mock_fetcher_class.return_value = mock_fetcher
-    
-    ticker_etl.extract()
-    
-    assert ticker_etl._data == sample_tickers
-    mock_fetcher.fetch.assert_called_once_with(["sp500"])
+    assert etl._data == sample_tickers
+    fetcher_class.return_value.fetch.assert_called_once_with(["sp500"])
 
 
-@patch("tgedr_datasets.ticker.etl.TickerFetcher")
-def test_extract_multiple_sources(
-    mock_fetcher_class: Mock, sample_tickers: list[str]
-) -> None:
-    """Test extract method with multiple comma-separated sources."""
-    
-    ticker_etl = TickerEtl(configuration={"source": "sp500, nasdaq100, dowjones"})
-    mock_fetcher = Mock()
-    mock_fetcher.fetch.return_value = sample_tickers
-    mock_fetcher_class.return_value = mock_fetcher
-    
-    ticker_etl.extract()
-    assert ticker_etl._data == sample_tickers
-    mock_fetcher.fetch.assert_called_once_with(["sp500", "nasdaq100", "dowjones"])
+def test_transform_populates_rows_and_today(fixed_now: datetime, sample_tickers: list[str]) -> None:
+    """Build a frame with each ticker and today's UTC midnight timestamp."""
+    etl = TickerEtl()
+    etl._data = sample_tickers
+
+    etl.transform()
+
+    expected_epoch = int(fixed_now.replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
+    assert etl._result["ticker"].tolist() == sample_tickers
+    assert etl._result["actual_time"].tolist() == [expected_epoch] * len(sample_tickers)
 
 
-@patch("tgedr_datasets.ticker.etl.TickerFetcher")
-def test_extract_with_whitespace(
-    mock_fetcher_class: Mock, sample_tickers: list[str]
-) -> None:
-    """Test extract method handles whitespace in source string."""
+def test_transform_empty_input() -> None:
+    """Produce an empty frame that still has both columns."""
+    etl = TickerEtl()
+    etl._data = []
 
-    ticker_etl = TickerEtl(configuration={"source": "  sp500  ,  nasdaq100  "})
-    mock_fetcher = Mock()
-    mock_fetcher.fetch.return_value = sample_tickers
-    mock_fetcher_class.return_value = mock_fetcher
-    
-    ticker_etl.extract()
-    
-    mock_fetcher.fetch.assert_called_once_with(["sp500", "nasdaq100"])
+    etl.transform()
+
+    assert etl._result.empty
+    assert list(etl._result.columns) == ["ticker", "actual_time"]
 
 
-def test_transform_creates_dataframe(ticker_etl: TickerEtl, sample_tickers: list[str]) -> None:
-    """Test transform method creates DataFrame with ticker and actual_time columns."""
-    ticker_etl._data = sample_tickers
-    
-    ticker_etl.transform()
-    
-    assert isinstance(ticker_etl._result, pd.DataFrame)
-    assert len(ticker_etl._result) == len(sample_tickers)
-    assert "ticker" in ticker_etl._result.columns
-    assert "actual_time" in ticker_etl._result.columns
-
-
-def test_transform_ticker_column(ticker_etl: TickerEtl, sample_tickers: list[str]) -> None:
-    """Test transform method correctly populates ticker column."""
-    ticker_etl._data = sample_tickers
-    
-    ticker_etl.transform()
-    
-    assert ticker_etl._result["ticker"].tolist() == sample_tickers
-
-
-def test_transform_actual_time_column(ticker_etl: TickerEtl, sample_tickers: list[str]) -> None:
-    """Test transform method correctly populates actual_time column with epoch timestamp."""
-    ticker_etl._data = sample_tickers
-
-    before_transform = datetime.now(UTC).date()
-    before_epoch = int(datetime(before_transform.year, before_transform.month, before_transform.day, tzinfo=UTC).timestamp())
-    
-    ticker_etl.transform()
-
-    after_transform = datetime.now(UTC).date()
-    after_epoch = int(datetime(after_transform.year, after_transform.month, after_transform.day, tzinfo=UTC).timestamp())
-    
-    # Check that actual_time column exists and has integer values
-    assert ticker_etl._result["actual_time"].dtype in [int, "int64"]
-    
-    # Check that all rows have the same actual_time
-    assert ticker_etl._result["actual_time"].nunique() == 1
-    
-    # Check the actual_time equals the day start captured before/after transform.
-    actual_epoch = ticker_etl._result["actual_time"].iloc[0]
-    assert actual_epoch in (before_epoch, after_epoch)
-
-
-def test_transform_empty_data(ticker_etl: TickerEtl) -> None:
-    """Test transform method with empty data list."""
-    ticker_etl._data = []
-
-    ticker_etl.transform()
-
-    assert isinstance(ticker_etl._result, pd.DataFrame)
-    assert len(ticker_etl._result) == 0
-    assert "ticker" in ticker_etl._result.columns
-    assert "actual_time" in ticker_etl._result.columns
-
-
-def test_transform_collects_metrics(ticker_etl: TickerEtl, sample_tickers: list[str]) -> None:
-    """Test transform collects data quality metrics."""
-    ticker_etl._data = sample_tickers
-
-    ticker_etl.transform()
-
-    assert ticker_etl._metrics.get("row_count") == 5
-    assert ticker_etl._metrics.get("duplicate_id_count") == 0
-    assert ticker_etl._metrics.get("ticker_count") == 5
-    assert ticker_etl._metrics.get("empty_ticker_count") == 0
-    assert ticker_etl._metrics.get("duplicate_ticker_count") == 0
-
-
-def test_transform_metrics_with_duplicates(ticker_etl: TickerEtl) -> None:
-    """Test transform metrics with duplicate tickers."""
-    ticker_etl._data = ["AAPL", "MSFT", "AAPL", "GOOGL", "MSFT"]
-
-    ticker_etl.transform()
-
-    assert ticker_etl._metrics.get("row_count") == 5
-    assert ticker_etl._metrics.get("duplicate_id_count") == 2
-    assert ticker_etl._metrics.get("duplicate_ticker_count") == 2
-
-
-def test_transform_metrics_with_empty_tickers(ticker_etl: TickerEtl) -> None:
-    """Test transform metrics with empty ticker strings."""
-    ticker_etl._data = ["AAPL", "", "  ", "MSFT"]
-
-    ticker_etl.transform()
-
-    assert ticker_etl._metrics.get("row_count") == 4
-    assert ticker_etl._metrics.get("empty_ticker_count") == 2
-
-
-def test_transform_metrics_empty_data(ticker_etl: TickerEtl) -> None:
-    """Test transform metrics with empty data list."""
-    ticker_etl._data = []
-
-    ticker_etl.transform()
-
-    assert ticker_etl._metrics.get("row_count") == 0
-    assert ticker_etl._metrics.get("duplicate_id_count") == 0
-    assert ticker_etl._metrics.get("ticker_count") == 0
-    assert ticker_etl._metrics.get("empty_ticker_count") == 0
-    assert ticker_etl._metrics.get("duplicate_ticker_count") == 0
-
-
-@patch("tgedr_datasets.ticker.etl.HuggingFaceDatasetStore")
-def test_load_saves_to_parquet(
-    mock_store_class: Mock, sample_tickers: list[str]
-) -> None:
-    """Test load method saves DataFrameSplits to Hugging Face store."""
-
-    target_path = "/tmp/test_tickers"
-    ticker_etl = TickerEtl(configuration={"dataset": target_path, "metrics_dir": "/tmp/test_metrics"})
-    mock_store = Mock()
-    mock_store_class.return_value = mock_store
-    
-    # Setup data
-    ticker_etl._data = sample_tickers
-    ticker_etl.transform()
-    
-    ticker_etl.load()
-    
-    mock_store.update.assert_called_once()
-    
-    # Verify the DataFrameSplits was passed with append=True
-    call_args = mock_store.update.call_args
-    assert isinstance(call_args[1]["df"], DataFrameSplits)
-    assert call_args[1]["df"].train.equals(ticker_etl._result)
-    assert call_args[1]["key"] == target_path
-    assert call_args[1]["append"] is True
-
-
-@patch("tgedr_datasets.ticker.etl.HuggingFaceDatasetStore")
-def test_load_uses_append_flag(
-    mock_store_class: Mock, sample_tickers: list[str]
-) -> None:
-    """Test load method updates the store with append=True."""
-
-    ticker_etl = TickerEtl(configuration={"dataset": "/tmp/test", "metrics_dir": "/tmp/test_metrics"})
-    mock_store = Mock()
-    mock_store_class.return_value = mock_store
-
-    ticker_etl._data = sample_tickers
-    ticker_etl.transform()
-
-    ticker_etl.load()
-
-    call_args = mock_store.update.call_args
-    assert call_args[1]["append"] is True
-    assert call_args[1]["key"] == "/tmp/test"
-
-
-@patch("tgedr_datasets.ticker.etl.HuggingFaceDatasetStore")
-@patch("tgedr_datasets.ticker.etl.TickerFetcher")
-def test_full_etl_pipeline(
-    mock_fetcher_class: Mock,
-    mock_store_class: Mock,
-    sample_tickers: list[str],
-) -> None:
-    """Test complete ETL pipeline from extract to load."""
-
-    ticker_etl = TickerEtl(configuration={"source": "sp500", "dataset": "/tmp/tickers", "metrics_dir": "/tmp/test_metrics"})
-    # Setup mocks
-    mock_fetcher = Mock()
-    mock_fetcher.fetch.return_value = sample_tickers
-    mock_fetcher_class.return_value = mock_fetcher
-
-    mock_store = Mock()
-    mock_store_class.return_value = mock_store
-
-    # Run full pipeline
-    ticker_etl.extract()
-    ticker_etl.transform()
-    ticker_etl.load()
-    
-    # Verify results
-    assert ticker_etl._data == sample_tickers
-    assert isinstance(ticker_etl._result, pd.DataFrame)
-    assert len(ticker_etl._result) == len(sample_tickers)
-    
-    # Verify method calls
-    mock_fetcher.fetch.assert_called_once()
-    mock_store.update.assert_called_once()
-
-
-@patch("tgedr_datasets.ticker.etl.TickerFetcher")
-def test_extract_logs_ticker_count(
-    mock_fetcher_class: Mock, sample_tickers: list[str], caplog
-) -> None:
-    """Test extract method logs the number of tickers fetched."""
-    caplog.set_level(logging.INFO)
-    
-    ticker_etl = TickerEtl(configuration={"source": "sp500", "dataset": "/tmp/tickers"})
-    mock_fetcher = Mock()
-    mock_fetcher.fetch.return_value = sample_tickers
-    mock_fetcher_class.return_value = mock_fetcher
-    
-    ticker_etl.extract()
-    
-    assert "tickers len: 5" in caplog.text
-
-
-def test_transform_logs_entry_exit(
-    ticker_etl: TickerEtl, sample_tickers: list[str], caplog
-) -> None:
-    """Test transform method logs entry and exit."""
-    caplog.set_level(logging.INFO)
-    ticker_etl._data = sample_tickers
-    
-    ticker_etl.transform()
-    
-    assert "[transform|in]" in caplog.text
-    assert "[transform|out]" in caplog.text
-
-
-@patch("tgedr_datasets.ticker.etl.HuggingFaceDatasetStore")
-def test_load_logs_target_path(
-    mock_store_class: Mock, sample_tickers: list[str], caplog
-) -> None:
-    """Test load method logs the target path."""
-    
-    target = "/tmp/test_path"
-    ticker_etl = TickerEtl(configuration={"source": "sp500", "dataset": target, "metrics_dir": "/tmp/test_metrics"})
-    caplog.set_level(logging.INFO)
-    mock_store = Mock()
-    mock_store_class.return_value = mock_store
-    
-    ticker_etl._data = sample_tickers
-    ticker_etl.transform()
-    
-    ticker_etl.load()
-    
-    assert f"[load|in] ({target})" in caplog.text
-    assert f"[load|out] => {target}" in caplog.text
-
-
-@patch("tgedr_datasets.ticker.etl.TickerFetcher")
-def test_extract_with_configuration_injection(
-    mock_fetcher_class: Mock, sample_tickers: list[str]
-) -> None:
-    """Test extract method with configuration injection."""
-    mock_fetcher = Mock()
-    mock_fetcher.fetch.return_value = sample_tickers
-    mock_fetcher_class.return_value = mock_fetcher
-    
-    config = {"source": "nasdaq100"}
-    etl = TickerEtl(configuration=config)
-    
-    # The @inject_configuration decorator should use config
-    etl.extract()
-    
-    mock_fetcher.fetch.assert_called_once()
-
-
-@patch("tgedr_datasets.ticker.etl.HuggingFaceDatasetStore")
-def test_load_with_configuration_injection(
-    mock_store_class: Mock, sample_tickers: list[str]
-) -> None:
-    """Test load method with configuration injection."""
-    mock_store = Mock()
-    mock_store_class.return_value = mock_store
-
-    config = {"dataset": "/tmp/configured_path", "metrics_dir": "/tmp/test_metrics"}
-    etl = TickerEtl(configuration=config)
+def test_validate_transform_accepts_contract_data(sample_tickers: list[str]) -> None:
+    """Accept transformed rows that satisfy the ticker contract."""
+    etl = TickerEtl()
     etl._data = sample_tickers
     etl.transform()
 
-    # The @inject_configuration decorator should use config
-    etl.load()
-
-    mock_store.update.assert_called_once()
+    etl.validate_transform()
 
 
-def test_validate_transform_success(ticker_etl: TickerEtl, sample_tickers: list[str]) -> None:
-    """Test validate_transform passes for data meeting the contract."""
-    ticker_etl._data = sample_tickers
-    ticker_etl.transform()
-
-    ticker_etl.validate_transform()
-
-
-def test_validate_transform_duplicate_ticker_fails(ticker_etl: TickerEtl) -> None:
-    """Test validate_transform raises ValidationError for duplicate tickers."""
-    ticker_etl._data = ["AAPL", "AAPL"]
-    ticker_etl.transform()
+def test_validate_transform_rejects_duplicate_tickers() -> None:
+    """Reject duplicate ticker symbols which violate the contract uniqueness."""
+    etl = TickerEtl()
+    etl._data = ["AAPL", "AAPL"]
+    etl.transform()
 
     with pytest.raises(ValidationError, match="does not meet contract"):
-        ticker_etl.validate_transform()
+        etl.validate_transform()
 
 
 @patch("tgedr_datasets.ticker.etl.HuggingFaceDatasetStore")
-def test_load_saves_metrics(
-    mock_store_class: Mock, sample_tickers: list[str], tmp_path
+def test_load_appends_result_to_configured_dataset(
+    store_class: Mock, sample_tickers: list[str]
 ) -> None:
-    """Test load method saves metrics to CSV."""
-    mock_store = Mock()
-    mock_store_class.return_value = mock_store
-
-    config = {"dataset": "/tmp/test", "metrics_dir": str(tmp_path)}
-    etl = TickerEtl(configuration=config)
+    """Push the transformed rows as a train split with append enabled and return None."""
+    etl = TickerEtl(configuration={"dataset": "tickers"})
     etl._data = sample_tickers
     etl.transform()
-    etl.load()
 
-    metrics_file = tmp_path / "tickers.csv"
-    assert metrics_file.exists()
+    result = etl.load()
 
-    import csv
-    with metrics_file.open() as f:
-        reader = csv.DictReader(f)
-        rows = list(reader)
+    assert result is None
+    store_class.return_value.update.assert_called_once()
+    kwargs = store_class.return_value.update.call_args.kwargs
+    assert kwargs["key"] == "tickers"
+    assert kwargs["append"] is True
+    assert isinstance(kwargs["df"], DataFrameSplits)
+    assert kwargs["df"].train.equals(etl._result)
 
-    assert len(rows) == 1
-    assert rows[0]["row_count"] == "5"
-    assert rows[0]["ticker_count"] == "5"
+
+def test_extract_requires_source_configuration() -> None:
+    """The inherited configuration decorator reports missing keys."""
+    with pytest.raises(Exception, match="missing required configuration parameters"):
+        TickerEtl().extract()

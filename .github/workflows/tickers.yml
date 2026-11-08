@@ -2,11 +2,13 @@ name: tickers
 
 on:
   workflow_dispatch:
-  # schedule:
-  #   - cron: '0 23 7 1,4,7,10 *'
+  schedule:
+    - cron: '0 23 7 1,4,7,10 *'
 
 env:
   HF_DS_TICKERS: "jtviegas/ticker_analysis_tickers"
+  TGEDR_OBSERVABILITY_EXPORTER_METRICS_FILE: metrics/otel
+  TGEDR_OBSERVABILITY_SERVICE: datasets
 
 jobs:
   execute_pipeline:
@@ -34,9 +36,8 @@ jobs:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
     - name: 'plot metrics'
       run: |
-        .venv/bin/run --module tgedr_datasets.utils.plots \
-          --callable plot_metrics \
-          --params "{\"metrics_dir\": \"metrics\", \"dataset_name\": \"tickers\"}"
+        uv run python -c "from tgedr_observability.plot import plot_metric; \
+          plot_metric(path='./metrics/otel', metric_name='rows', attr_key='type', save_path='./metrics/rows.png')"
     - name: 'commit and push metrics'
       run: |
         git config user.name "github-actions[bot]"
