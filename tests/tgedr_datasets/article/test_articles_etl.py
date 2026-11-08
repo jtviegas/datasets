@@ -131,13 +131,14 @@ def test_load_updates_configured_dataset() -> None:
     etl._store = Mock()
     etl._result = pd.DataFrame({"id": [1], "title": ["Headline"]})
 
-    etl.load()
+    result = etl.load()
 
-    etl._store.save.assert_called_once()
-    kwargs = etl._store.save.call_args.kwargs
+    assert result is None
+    etl._store.update.assert_called_once()
+    kwargs = etl._store.update.call_args.kwargs
     assert kwargs["key"] == "articles"
+    assert kwargs["key_fields"] == ["id"]
     assert kwargs["split"] == "train"
-    assert kwargs["append"] is True
     assert isinstance(kwargs["df"], Dataset)
     assert kwargs["df"].to_pandas().equals(etl._result)
 

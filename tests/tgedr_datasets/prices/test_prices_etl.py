@@ -172,7 +172,7 @@ def test_validate_transform_rejects_negative_price(sample_prices: list[Price]) -
 
 
 def test_load_saves_arrow_dataset_and_returns_none() -> None:
-    """Save the result as a train split with append enabled."""
+    """Update the result as an Arrow-backed train split and return None."""
     etl = PricesEtl(configuration={"target_dataset": "prices"})
     etl._store = Mock()
     etl._result = pd.DataFrame({"id": [1], "ticker": ["AAPL"]})
@@ -180,9 +180,10 @@ def test_load_saves_arrow_dataset_and_returns_none() -> None:
     result = etl.load()
 
     assert result is None
-    kwargs = etl._store.save.call_args.kwargs
+    etl._store.update.assert_called_once()
+    kwargs = etl._store.update.call_args.kwargs
     assert kwargs["key"] == "prices"
     assert kwargs["split"] == "train"
-    assert kwargs["append"] is True
+    assert kwargs["key_fields"] == ["id"]
     assert isinstance(kwargs["df"], Dataset)
     assert kwargs["df"].to_pandas().equals(etl._result)

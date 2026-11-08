@@ -2515,7 +2515,7 @@ wheels = [
 
 [[package]]
 name = "tgedr-datasets"
-version = "2.0.24"
+version = "2.0.25"
 source = { editable = "." }
 dependencies = [
     { name = "bs4" },
