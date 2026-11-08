@@ -370,10 +370,10 @@ usage() {
       - test_coverage_check <threshold>   checks coverage against a threshold
       - build                             builds the package
       - publish                           publishes the package
-      - tag <VERSION> <COMMIT_HASH>       tags a specific commit with the version and pushes it to the remote
+      - tag                               reads the project version from pyproject.toml via uv, then creates an annotated git tag on the latest commit and pushes all tags to remote
       - get_latest_tag
       - download_dataset <DATASET> <FILE> [<LOCAL_DIR>]   downloads a file from a Hugging Face dataset
-      - upload_dataset <DATASET> <FILE>                 uploads a file to a Hugging
+      - upload_dataset <DATASET> <FILE>                 uploads a file to a Hugging Face dataset
 EOM
   exit 1
 }
@@ -408,7 +408,7 @@ case "$1" in
     publish
     ;;
   tag)
-    git_tag_and_push "$2" "$3"
+    git_tag_and_push_auto_uv
     ;;
   get_latest_tag)
     get_latest_tag
