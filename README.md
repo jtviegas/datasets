@@ -18,23 +18,17 @@ This repository provides a production-grade Python library (`tgedr-datasets`) fo
 
 ### row metrics
 
-![articles metrics](metrics/rows.png)
+![metrics](metrics/rows.png)
 
 ### articles: [@hugging face](https://huggingface.co/datasets/jtviegas/ticker_analysis_articles)
 
-### prices
+### prices:  [@hugging face](https://huggingface.co/datasets/jtviegas/ticker_analysis_prices)
 
-[download @ hugging face](https://huggingface.co/datasets/jtviegas/ticker_analysis_prices)
+### tickers [@hugging face](https://huggingface.co/datasets/jtviegas/ticker_analysis_tickers)
 
-![prices metrics](metrics/prices_metrics.png)
-
-### tickers
-
-[download @ hugging face](https://huggingface.co/datasets/jtviegas/ticker_analysis_tickers)
-
-![tickers metrics](metrics/tickers_metrics.png)
 
 ## development
+
 - main requirements:
   - _uv_  
   - _bash_
