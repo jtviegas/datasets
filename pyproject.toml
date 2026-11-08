@@ -1,13 +1,13 @@
 [project]
 name = "tgedr-datasets"
-version = "2.0.25"
+version = "2.0.26"
 description = "datasets to be consumed elsewhere"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
 
 dependencies = [
     "pandas~=2.3.0",
-    "tgedr-dataops==1.5.1",
+    "tgedr-dataops==1.5.2",
     "pyarrow~=23.0.0",
     "pyyaml>=6.0",
     "lxml>=6.0.2",
