@@ -55,7 +55,8 @@ def test_get_tickers_selects_latest_unique_tickers() -> None:
 
 def test_extract_uses_configured_tickers_and_aggregates(sample_articles: list[Article]) -> None:
     """Extract one-day news for each ticker in the latest ticker split."""
-    etl = ArticlesEtl(configuration={"tickers_dataset": "tickers"})
+    timestamp = 1_754_064_000
+    etl = ArticlesEtl(configuration={"tickers_dataset": "tickers", "timestamp": timestamp})
     etl._store = Mock()
     etl._store.get.return_value = DataFrameSplits(
         train=Dataset.from_pandas(pd.DataFrame({"ticker": ["AAPL", "MSFT"], "actual_time": [1, 1]})),
@@ -67,9 +68,10 @@ def test_extract_uses_configured_tickers_and_aggregates(sample_articles: list[Ar
         etl.extract()
 
     assert etl._data == sample_articles
+    assert etl._processing_time == timestamp
     assert aggregator.get_news.call_args_list == [
-        (("AAPL", etl._processing_time, 1),),
-        (("MSFT", etl._processing_time, 1),),
+        (("AAPL", timestamp, 1),),
+        (("MSFT", timestamp, 1),),
     ]
 
 
@@ -131,11 +133,11 @@ def test_load_updates_configured_dataset() -> None:
 
     etl.load()
 
-    etl._store.update.assert_called_once()
-    kwargs = etl._store.update.call_args.kwargs
+    etl._store.save.assert_called_once()
+    kwargs = etl._store.save.call_args.kwargs
     assert kwargs["key"] == "articles"
-    assert kwargs["key_fields"] == ["id"]
     assert kwargs["split"] == "train"
+    assert kwargs["append"] is True
     assert isinstance(kwargs["df"], Dataset)
     assert kwargs["df"].to_pandas().equals(etl._result)
 

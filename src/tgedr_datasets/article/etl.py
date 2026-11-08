@@ -58,16 +58,19 @@ class ArticlesEtl(Etl4GH):
         return result
 
     @Etl4GH.inject_configuration
-    def extract(self, tickers_dataset: str) -> None:
+    def extract(self, tickers_dataset: str, timestamp: int | None = None) -> None:
         """Extract news articles for the given tickers dataset.
 
         Args:
             tickers_dataset (str): The dataset key containing the tickers to fetch
                 news for.
+            timestamp (int | None): The timestamp to use for processing. If None, the current time is used.
         """
         logger.info(f"[extract|in] ({tickers_dataset})")
         tickers: list[str] = self._get_tickers(tickers_dataset)
         articles_aggregator = ArticlesAggregator()
+        if timestamp is not None:
+            self._processing_time = timestamp
         processing_ts_formatted = datetime.fromtimestamp(self._processing_time, tz=UTC).strftime("%Y-%m-%d %H:%M:%S")
         logger.info(f"[extract] getting news to: {processing_ts_formatted} from 1 days before")
         for ticker in tickers:
@@ -122,5 +125,5 @@ class ArticlesEtl(Etl4GH):
             str: The target dataset key.
         """
         logger.info(f"[load|in] ({target_dataset})")
-        self._store.update(df=Dataset.from_pandas(self._result), key=target_dataset, key_fields=["id"], split="train")
+        self._store.save(df=Dataset.from_pandas(self._result), key=target_dataset, split="train", append=True)
         logger.info("[load|out]")

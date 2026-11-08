@@ -2,12 +2,14 @@ name: prices
 
 on:
   workflow_dispatch:
-  # schedule:
-  #   - cron: '0 23 * * 1-5'
+  schedule:
+    - cron: '0 0 * * 1-5'
 
 env:
   HF_DS_TICKERS: "jtviegas/ticker_analysis_tickers"
   HF_DS_PRICES: "jtviegas/ticker_analysis_prices"
+  TGEDR_OBSERVABILITY_EXPORTER_METRICS_FILE: metrics/otel
+  TGEDR_OBSERVABILITY_SERVICE: datasets
 
 jobs:
   execute_pipeline:
@@ -30,14 +32,13 @@ jobs:
         .venv/bin/run --module tgedr_datasets.prices.etl \
           --classname PricesEtl \
           --callable run \
-          --classparams "{\"configuration\": {\"tickers_dataset\": \"${{ env.HF_DS_TICKERS }}\", \"target_dataset\": \"${{ env.HF_DS_PRICES }}\"}}"
+          --classparams "{\"configuration\": {\"price_date\": 1793923200, \"tickers_dataset\": \"${{ env.HF_DS_TICKERS }}\", \"target_dataset\": \"${{ env.HF_DS_PRICES }}\"}}"
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
     - name: 'plot metrics'
       run: |
-        .venv/bin/run --module tgedr_datasets.utils.plots \
-          --callable plot_metrics \
-          --params "{\"metrics_dir\": \"metrics\", \"dataset_name\": \"prices\"}"
+        uv run python -c "from tgedr_observability.plot import plot_metric; \
+          plot_metric(path='./metrics/otel', metric_name='rows', attr_key='type', save_path='./metrics/rows.png')"
     - name: 'commit and push metrics'
       run: |
         git config user.name "github-actions[bot]"
