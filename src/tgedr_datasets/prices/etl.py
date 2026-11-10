@@ -54,13 +54,13 @@ class PricesEtl(Etl4GH):
         """
         logger.info(f"[extract|in] ({tickers_dataset}, {target_dataset}, {price_date})")
         prices_epoch: int = int(datetime.now(UTC).timestamp()) if price_date is None else price_date
-        prices_date: int = int(
-            datetime.fromtimestamp(prices_epoch, tz=UTC)
-                .replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
-        )
+        prices_date_truncated: datetime = datetime.fromtimestamp(prices_epoch, tz=UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+        prices_ts: int = int(prices_date_truncated.timestamp())
+        logger.info(f"[extract] using price date: {prices_date_truncated}")
+
         tickers = self._get_tickers(tickers_dataset)
         for ticker in tickers:
-            self._data.extend(PriceFetcher.get_instance().get_prices(ticker, prices_date))
+            self._data.extend(PriceFetcher.get_instance().get_prices(ticker, prices_ts))
         logger.info("[extract|out] extracted %d prices", len(self._data))
 
     def transform(self) -> None:

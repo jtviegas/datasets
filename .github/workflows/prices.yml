@@ -32,7 +32,7 @@ jobs:
         .venv/bin/run --module tgedr_datasets.prices.etl \
           --classname PricesEtl \
           --callable run \
-          --classparams "{\"configuration\": {\"tickers_dataset\": \"${{ env.HF_DS_TICKERS }}\", \"target_dataset\": \"${{ env.HF_DS_PRICES }}\"}}"
+          --classparams "{\"configuration\": { \"price_date\": 1794182400, \"tickers_dataset\": \"${{ env.HF_DS_TICKERS }}\", \"target_dataset\": \"${{ env.HF_DS_PRICES }}\"}}"
       env:
         HF_TOKEN: ${{ secrets.HF_TOKEN }}
     - name: 'plot metrics'
