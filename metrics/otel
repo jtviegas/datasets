@@ -796,3 +796,53 @@
         }
     ]
 }
+{
+    "resource_metrics": [
+        {
+            "resource": {
+                "attributes": {
+                    "telemetry.sdk.language": "python",
+                    "telemetry.sdk.name": "opentelemetry",
+                    "telemetry.sdk.version": "1.45.2",
+                    "service.instance.id": "cc310c77-1312-4bc5-b526-c66c0c06dec6",
+                    "service.name": "datasets"
+                },
+                "schema_url": ""
+            },
+            "scope_metrics": [
+                {
+                    "scope": {
+                        "name": "datasets.articles.etl",
+                        "version": "",
+                        "schema_url": "",
+                        "attributes": null
+                    },
+                    "metrics": [
+                        {
+                            "name": "rows",
+                            "description": "Counter metric for datasets.articles.etl.rows",
+                            "unit": "1",
+                            "data": {
+                                "data_points": [
+                                    {
+                                        "attributes": {
+                                            "type": "articles"
+                                        },
+                                        "start_time_unix_nano": 1794607629961209924,
+                                        "time_unix_nano": 1794607635229203595,
+                                        "value": 458,
+                                        "exemplars": []
+                                    }
+                                ],
+                                "aggregation_temporality": 2,
+                                "is_monotonic": false
+                            }
+                        }
+                    ],
+                    "schema_url": ""
+                }
+            ],
+            "schema_url": ""
+        }
+    ]
+}
